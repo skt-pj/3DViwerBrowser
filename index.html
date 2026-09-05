@@ -5,35 +5,47 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>3D Viewer Browser</title>
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#2c2f34;color:#eee;font-family:system-ui,sans-serif}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#272a2f;color:#eee;font-family:system-ui,sans-serif}
 #view{width:100vw;height:100vh;display:block;touch-action:none}
-#ui{position:fixed;z-index:10;top:12px;left:12px;width:min(490px,calc(100vw - 24px));box-sizing:border-box;padding:12px;border-radius:10px;background:#141414e8;box-shadow:0 8px 24px #0008}
+#ui{position:fixed;z-index:10;top:12px;left:12px;width:min(490px,calc(100vw - 24px));box-sizing:border-box;padding:12px;border-radius:10px;background:#141414e8;box-shadow:0 8px 24px #0008;transition:width .15s ease,padding .15s ease}
+.uiHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.title{font-weight:700}.uiToggle{padding:5px 9px;min-width:42px}
+#ui.collapsed{width:auto;max-width:calc(100vw - 24px);padding:8px 10px}#ui.collapsed .uiBody{display:none}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
 input[type=file],select{width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #555;border-radius:7px;padding:7px}
-button,label.ctrl{background:#252525;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 9px;font-size:13px}
-button{cursor:pointer}button:disabled,select:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.5;margin-top:8px}.title{font-weight:700;margin-bottom:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}.exposure{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}.exposure input{flex:1}.value{display:inline-block;min-width:34px;text-align:right}
+button,label.ctrl,.exposure{background:#252525;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 9px;font-size:13px}
+button{cursor:pointer}button:disabled,select:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.5;margin-top:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}.exposure{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}.exposure input{flex:1}.value{display:inline-block;min-width:34px;text-align:right}
+@media(max-width:700px){
+  #ui{top:8px;left:8px;width:calc(100vw - 16px);padding:10px;border-radius:9px}
+  #ui.collapsed{top:8px;left:8px;width:auto;max-width:calc(100vw - 16px);padding:7px 9px}
+  .title{font-size:15px}.label{margin-top:6px}.row{gap:6px;margin-top:6px}
+  button,label.ctrl,.exposure{padding:6px 8px;font-size:12px}.small{font-size:11px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script>
 </head>
 <body>
 <canvas id="view"></canvas>
 <div id="ui">
-<div class="title">3Dモデルプレビュー</div>
-<div class="label">ファイル選択</div>
-<input id="files" type="file" multiple accept=".glb,.gltf,.obj,.mtl,.stl,.ply,.fbx,.dae,.bin,.png,.jpg,.jpeg,.webp,.bmp,.tga">
-<div class="label">フォルダ選択</div>
-<input id="folder" type="file" webkitdirectory multiple>
-<div class="row">
-<label class="ctrl"><input id="rotate" type="checkbox"> 自動回転</label>
-<button id="fit">表示をリセット</button>
-<div class="exposure ctrl"><span>明るさ</span><input id="exposure" type="range" min="0.5" max="2.5" step="0.05" value="1.0"><span id="exposureValue" class="value">1.00</span></div>
-</div>
-<div class="row"><select id="anim" disabled><option>アニメーションなし</option></select><button id="play" disabled>一時停止</button><button id="stop" disabled>停止</button></div>
-<div id="info" class="small">左ドラッグ/1本指: 回転　右ドラッグ: 移動　ホイール: 拡大縮小　2本指: 拡大縮小＋移動。OBJは OBJ・MTL・テクスチャ画像を同時選択、またはフォルダ選択してください。</div>
+  <div class="uiHeader">
+    <div class="title">3Dモデルプレビュー</div>
+    <button id="uiToggle" class="uiToggle" type="button" aria-expanded="true">隠す</button>
+  </div>
+  <div class="uiBody">
+    <div class="label">ファイル選択</div>
+    <input id="files" type="file" multiple accept=".glb,.gltf,.obj,.mtl,.stl,.ply,.fbx,.dae,.bin,.png,.jpg,.jpeg,.webp,.bmp,.tga">
+    <div class="label">フォルダ選択</div>
+    <input id="folder" type="file" webkitdirectory multiple>
+    <div class="row">
+      <label class="ctrl"><input id="rotate" type="checkbox"> 自動回転</label>
+      <button id="fit" type="button">表示をリセット</button>
+      <div class="exposure"><span>明るさ</span><input id="exposure" type="range" min="0.55" max="1.60" step="0.05" value="0.90"><span id="exposureValue" class="value">0.90</span></div>
+    </div>
+    <div class="row"><select id="anim" disabled><option>アニメーションなし</option></select><button id="play" disabled>一時停止</button><button id="stop" disabled>停止</button></div>
+    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。マス目とカメラは固定です。</div>
+  </div>
 </div>
 <script type="module">
 import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
@@ -45,60 +57,56 @@ import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
 const $=id=>document.getElementById(id);
-const canvas=$('view'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue');
+const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue');
 
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x2c2f34);
+scene.background=new THREE.Color(0x272a2f);
 
 const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.01,100000);
 camera.up.set(0,1,0);
-camera.position.set(3,2,4);
 
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.0;
+renderer.toneMappingExposure=0.90;
 renderer.shadowMap.enabled=false;
 
 const roomEnvironment=new RoomEnvironment();
 const pmremGenerator=new THREE.PMREMGenerator(renderer);
 const environmentRT=pmremGenerator.fromScene(roomEnvironment);
 scene.environment=environmentRT.texture;
+scene.environmentIntensity=0.75;
 roomEnvironment.dispose();
 pmremGenerator.dispose();
 
-const hemisphere=new THREE.HemisphereLight(0xffffff,0x555555,1.15);
+const hemisphere=new THREE.HemisphereLight(0xffffff,0x50545a,0.45);
 scene.add(hemisphere);
-const keyLight=new THREE.DirectionalLight(0xffffff,2.0);keyLight.position.set(4,6,5);scene.add(keyLight);
-const fillLight=new THREE.DirectionalLight(0xffffff,0.8);fillLight.position.set(-4,2,3);scene.add(fillLight);
+const keyLight=new THREE.DirectionalLight(0xffffff,0.55);
+keyLight.position.set(3,4,5);
+scene.add(keyLight);
 
-const grid=new THREE.GridHelper(10,10,0x73777d,0x4b4e53);scene.add(grid);
-const axes=new THREE.AxesHelper(1.5);scene.add(axes);
+const grid=new THREE.GridHelper(10,10,0x6f747c,0x44484f);
+grid.material.transparent=true;
+grid.material.opacity=0.48;
+scene.add(grid);
+const axes=new THREE.AxesHelper(1.5);
+axes.material.transparent=true;
+axes.material.opacity=0.72;
+scene.add(axes);
 
-const controls=new OrbitControls(camera,canvas);
-controls.enableDamping=true;
-controls.dampingFactor=0.08;
-controls.enableRotate=true;
-controls.enablePan=true;
-controls.enableZoom=true;
-controls.screenSpacePanning=true;
-controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;
-controls.mouseButtons.MIDDLE=THREE.MOUSE.DOLLY;
-controls.mouseButtons.RIGHT=THREE.MOUSE.PAN;
-controls.touches.ONE=THREE.TOUCH.ROTATE;
-controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
-controls.autoRotate=false;
-controls.autoRotateSpeed=1.2;
-canvas.addEventListener('contextmenu',e=>e.preventDefault());
+const objectRoot=new THREE.Group();
+const contentRoot=new THREE.Group();
+objectRoot.add(contentRoot);
+scene.add(objectRoot);
 
 const clock=new THREE.Clock();
 let model=null,mixer=null,clips=[],action=null,playing=true,urls=[];
-let homeCameraPosition=new THREE.Vector3(3,2,4);
-let homeTarget=new THREE.Vector3(0,0,0);
-let homeMinDistance=0;
-let homeMaxDistance=Infinity;
+let modelRadius=1,modelHalfHeight=0.5,objectScale=1;
+const panOffset=new THREE.Vector3();
+const homeQuaternion=new THREE.Quaternion();
+let homeCameraPosition=new THREE.Vector3(3,0.3,4),homeCameraTarget=new THREE.Vector3(0,0.5,0);
 
 const supported=new Set(['glb','gltf','obj','stl','ply','fbx','dae']);
 const ext=n=>n.includes('.')?n.split('.').pop().toLowerCase():'';
@@ -109,57 +117,85 @@ function mapFiles(files){const m=new Map();for(const f of files){for(const k of 
 function findFile(m,url){const n=norm(url).toLowerCase(),b=base(n);if(m.has(n))return m.get(n);if(m.has(b))return m.get(b);for(const f of m.files||[]){const p=norm(f.webkitRelativePath||f.name).toLowerCase();if(p.endsWith('/'+n)||p.endsWith('/'+b))return f}return null}
 function managerFor(m){const mgr=new THREE.LoadingManager();mgr.addHandler(/\.tga$/i,new TGALoader());mgr.setURLModifier(u=>{const f=findFile(m,u);return f?blob(f):u});return mgr}
 
+function setUICollapsed(collapsed){ui.classList.toggle('collapsed',collapsed);uiToggle.textContent=collapsed?'設定':'隠す';uiToggle.setAttribute('aria-expanded',String(!collapsed))}
+uiToggle.addEventListener('click',()=>setUICollapsed(!ui.classList.contains('collapsed')));
+
 function resetAnimationUI(){anim.innerHTML='<option>アニメーションなし</option>';anim.disabled=play.disabled=stop.disabled=true;playing=false;play.textContent='再生'}
-function clean(){if(action)action.stop();if(mixer)mixer.stopAllAction();mixer=null;clips=[];action=null;resetAnimationUI();if(model){scene.remove(model);disposeObject(model);model=null}urls.forEach(URL.revokeObjectURL);urls=[]}
+function clean(){if(action)action.stop();if(mixer)mixer.stopAllAction();mixer=null;clips=[];action=null;resetAnimationUI();if(model){contentRoot.remove(model);disposeObject(model);model=null}contentRoot.position.set(0,0,0);objectRoot.position.set(0,0,0);objectRoot.quaternion.identity();objectRoot.scale.setScalar(1);objectScale=1;panOffset.set(0,0,0);urls.forEach(URL.revokeObjectURL);urls=[]}
 function disposeObject(root){root.traverse(o=>{if(o.geometry)o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];for(const m of mats){if(!m)continue;for(const key of Object.keys(m)){const v=m[key];if(v&&v.isTexture)v.dispose()}m.dispose()}})}
 function materialList(m){return Array.isArray(m)?m:[m]}
-function normalizeMaterial(material,format){for(const m of materialList(material)){if(!m)continue;if(m.map){m.map.colorSpace=THREE.SRGBColorSpace;m.map.needsUpdate=true;if(format==='obj'&&m.color)m.color.set(0xffffff)}if(m.emissiveMap){m.emissiveMap.colorSpace=THREE.SRGBColorSpace;m.emissiveMap.needsUpdate=true}m.needsUpdate=true}}
-function prep(root,format){root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.receiveShadow=false;if(!o.material)o.material=new THREE.MeshStandardMaterial({color:0xdddddd,roughness:.7,metalness:0});normalizeMaterial(o.material,format)})}
+
+function convertObjMaterial(source){
+  if(!source)return new THREE.MeshStandardMaterial({color:0xbcc0c6,roughness:.72,metalness:0});
+  const material=new THREE.MeshStandardMaterial({
+    color:source.map?0xffffff:(source.color?source.color.clone():new THREE.Color(0xbcc0c6)),
+    map:source.map||null,
+    normalMap:source.normalMap||null,
+    bumpMap:source.bumpMap||null,
+    bumpScale:Number.isFinite(source.bumpScale)?source.bumpScale:1,
+    alphaMap:source.alphaMap||null,
+    transparent:Boolean(source.transparent||(source.opacity??1)<1),
+    opacity:source.opacity??1,
+    alphaTest:source.alphaTest??0,
+    side:source.side??THREE.FrontSide,
+    roughness:.72,
+    metalness:0
+  });
+  material.name=source.name||'';
+  return material;
+}
+
+function normalizeMaterial(material){for(const m of materialList(material)){if(!m)continue;if(m.map){m.map.colorSpace=THREE.SRGBColorSpace;m.map.needsUpdate=true}if(m.emissiveMap){m.emissiveMap.colorSpace=THREE.SRGBColorSpace;m.emissiveMap.needsUpdate=true}m.needsUpdate=true}}
+function prep(root,format){root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.receiveShadow=false;if(format==='obj'&&o.material){o.material=Array.isArray(o.material)?o.material.map(convertObjMaterial):convertObjMaterial(o.material)}else if(!o.material){o.material=new THREE.MeshStandardMaterial({color:0xbcc0c6,roughness:.72,metalness:0})}normalizeMaterial(o.material)})}
+
+function updateObjectTransform(){
+  objectScale=THREE.MathUtils.clamp(objectScale,0.08,12);
+  objectRoot.scale.setScalar(objectScale);
+  objectRoot.position.set(panOffset.x,panOffset.y+modelHalfHeight*objectScale,panOffset.z);
+}
 
 function frameModel(){
   if(!model)return;
+  objectRoot.position.set(0,0,0);objectRoot.quaternion.identity();objectRoot.scale.setScalar(1);contentRoot.position.set(0,0,0);panOffset.set(0,0,0);objectScale=1;
   model.updateWorldMatrix(true,true);
   const box=new THREE.Box3().setFromObject(model);
   const center=box.getCenter(new THREE.Vector3());
   const size=box.getSize(new THREE.Vector3());
   const sphere=box.getBoundingSphere(new THREE.Sphere());
-  const radius=Math.max(sphere.radius,0.001);
+  modelRadius=Math.max(sphere.radius,0.001);
+  modelHalfHeight=Math.max(size.y*0.5,0.001);
+
+  contentRoot.position.copy(center).multiplyScalar(-1);
+  updateObjectTransform();
+
   const verticalFov=THREE.MathUtils.degToRad(camera.fov);
   const horizontalFov=2*Math.atan(Math.tan(verticalFov/2)*camera.aspect);
   const limitingFov=Math.max(0.01,Math.min(verticalFov,horizontalFov));
-  const distance=radius/Math.sin(limitingFov/2)*1.18;
-  const direction=new THREE.Vector3(1,0.65,1).normalize();
-
+  const distance=modelRadius/Math.sin(limitingFov/2)*1.22;
+  const target=new THREE.Vector3(0,modelHalfHeight,0);
+  const direction=new THREE.Vector3(0.85,0.08,1).normalize();
   camera.near=Math.max(distance/1000,0.001);
   camera.far=Math.max(distance*1000,1000);
-  camera.position.copy(center).addScaledVector(direction,distance);
+  camera.position.copy(target).addScaledVector(direction,distance);
+  camera.lookAt(target);
   camera.updateProjectionMatrix();
 
-  controls.target.copy(center);
-  controls.minDistance=Math.max(radius*0.05,0.001);
-  controls.maxDistance=Math.max(radius*50,distance*4);
-  controls.update();
-
   homeCameraPosition.copy(camera.position);
-  homeTarget.copy(controls.target);
-  homeMinDistance=controls.minDistance;
-  homeMaxDistance=controls.maxDistance;
+  homeCameraTarget.copy(target);
+  homeQuaternion.copy(objectRoot.quaternion);
 
-  grid.position.y=box.min.y;
-  grid.position.x=center.x;
-  grid.position.z=center.z;
-  const gridScale=Math.max(Math.max(size.x,size.z)/10,0.1);
-  grid.scale.setScalar(gridScale);
-  axes.position.copy(center);
-  axes.scale.setScalar(Math.max(radius*0.45,0.2));
+  grid.position.set(0,0,0);
+  grid.rotation.set(0,0,0);
+  const gridWorldSize=Math.max(Math.max(size.x,size.z)*2.6,size.y*1.6,1);
+  grid.scale.setScalar(gridWorldSize/10);
+  axes.position.set(0,0,0);
+  axes.scale.setScalar(Math.max(modelRadius*0.35,0.12));
 }
 
 function resetView(){
-  camera.position.copy(homeCameraPosition);
-  controls.target.copy(homeTarget);
-  controls.minDistance=homeMinDistance;
-  controls.maxDistance=homeMaxDistance;
-  controls.update();
+  if(!model)return;
+  objectScale=1;panOffset.set(0,0,0);objectRoot.quaternion.copy(homeQuaternion);updateObjectTransform();
+  camera.position.copy(homeCameraPosition);camera.lookAt(homeCameraTarget);camera.updateProjectionMatrix();
 }
 
 function setupAnim(root,a){clips=(a||[]).filter(c=>c?.tracks?.length);if(!clips.length){resetAnimationUI();return}mixer=new THREE.AnimationMixer(root);anim.innerHTML='';clips.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name?.trim()||`Animation ${i+1}`;anim.appendChild(o)});anim.disabled=play.disabled=stop.disabled=false;anim.value='0';playClip(0)}
@@ -179,18 +215,12 @@ async function load(files){
       r=await promiseLoad(new GLTFLoader(mgr),url,g=>({object:g.scene,animations:g.animations||[]}));
     }else if(e==='obj'){
       const ol=new OBJLoader(mgr),mtl=files.find(f=>ext(f.name)==='mtl');
-      if(mtl){
-        const ml=new MTLLoader(mgr);
-        ml.setMaterialOptions({ignoreZeroRGBs:true});
-        const mats=await promiseLoad(ml,blob(mtl));
-        mats.preload();
-        ol.setMaterials(mats);
-      }
+      if(mtl){const ml=new MTLLoader(mgr);ml.setMaterialOptions({ignoreZeroRGBs:true});const mats=await promiseLoad(ml,blob(mtl));mats.preload();ol.setMaterials(mats)}
       r=await promiseLoad(ol,url,o=>({object:o,animations:[]}));
     }else if(e==='stl'){
-      r=await promiseLoad(new STLLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xdddddd,roughness:.7,metalness:0})),animations:[]}});
+      r=await promiseLoad(new STLLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xb8bdc4,roughness:.74,metalness:0})),animations:[]}});
     }else if(e==='ply'){
-      r=await promiseLoad(new PLYLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xdddddd,vertexColors:g.hasAttribute('color'),roughness:.7,metalness:0})),animations:[]}});
+      r=await promiseLoad(new PLYLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xb8bdc4,vertexColors:g.hasAttribute('color'),roughness:.74,metalness:0})),animations:[]}});
     }else if(e==='fbx'){
       r=await promiseLoad(new FBXLoader(mgr),url,o=>({object:o,animations:o.animations||[]}));
     }else if(e==='dae'){
@@ -198,31 +228,93 @@ async function load(files){
     }
 
     model=r.object;
-    scene.add(model);
+    contentRoot.add(model);
     prep(model,e);
     frameModel();
     setupAnim(model,r.animations);
 
     const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3());
     info.textContent=`表示中: ${main.name} / X=${size.x.toFixed(3)} Y=${size.y.toFixed(3)} Z=${size.z.toFixed(3)} / アニメーション: ${clips.length}件`;
-  }catch(err){
-    console.error(err);
-    info.textContent='読み込み失敗: '+err.message;
-  }
+    if(matchMedia('(max-width:700px)').matches)setTimeout(()=>setUICollapsed(true),250);
+  }catch(err){console.error(err);info.textContent='読み込み失敗: '+err.message}
 }
+
+const Y_AXIS=new THREE.Vector3(0,1,0),X_AXIS=new THREE.Vector3(1,0,0);
+function rotateObject(dx,dy){
+  if(!model)return;
+  const qYaw=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,dx*0.008);
+  const qPitch=new THREE.Quaternion().setFromAxisAngle(X_AXIS,dy*0.008);
+  objectRoot.quaternion.premultiply(qYaw).premultiply(qPitch).normalize();
+}
+function panObject(dx,dy){
+  if(!model)return;
+  const distance=camera.position.distanceTo(homeCameraTarget);
+  const worldHeight=2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov)*0.5);
+  const unitsPerPixel=worldHeight/Math.max(innerHeight,1);
+  const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  const up=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
+  panOffset.addScaledVector(right,dx*unitsPerPixel);
+  panOffset.addScaledVector(up,-dy*unitsPerPixel);
+  updateObjectTransform();
+}
+function scaleObject(factor){if(!model||!Number.isFinite(factor)||factor<=0)return;objectScale*=factor;updateObjectTransform()}
+
+const pointers=new Map();
+let lastSingle=null,lastTouchMid=null,lastTouchDistance=null,mouseMode=null;
+const point=e=>new THREE.Vector2(e.clientX,e.clientY);
+const touchState=()=>{const pts=[...pointers.values()].filter(p=>p.pointerType!=='mouse').map(p=>p.point);if(pts.length!==2)return null;return{mid:pts[0].clone().add(pts[1]).multiplyScalar(.5),distance:pts[0].distanceTo(pts[1])}};
+
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId,{point:point(e),pointerType:e.pointerType,button:e.button});
+  if(e.pointerType==='mouse'){
+    mouseMode=e.button===2?'pan':'rotate';lastSingle=point(e);
+  }else if(pointers.size===1){
+    lastSingle=point(e);lastTouchMid=null;lastTouchDistance=null;
+  }else{
+    const s=touchState();if(s){lastTouchMid=s.mid;lastTouchDistance=s.distance;lastSingle=null}
+  }
+});
+canvas.addEventListener('pointermove',e=>{
+  const data=pointers.get(e.pointerId);if(!data)return;
+  const now=point(e);data.point=now;pointers.set(e.pointerId,data);
+  if(e.pointerType==='mouse'&&lastSingle){
+    const dx=now.x-lastSingle.x,dy=now.y-lastSingle.y;
+    if(mouseMode==='pan')panObject(dx,dy);else rotateObject(dx,dy);
+    lastSingle.copy(now);return;
+  }
+  const touchPointers=[...pointers.values()].filter(p=>p.pointerType!=='mouse');
+  if(touchPointers.length===1&&lastSingle){
+    const dx=now.x-lastSingle.x,dy=now.y-lastSingle.y;rotateObject(dx,dy);lastSingle.copy(now);
+  }else if(touchPointers.length===2){
+    const s=touchState();if(!s)return;
+    if(lastTouchMid)panObject(s.mid.x-lastTouchMid.x,s.mid.y-lastTouchMid.y);
+    if(lastTouchDistance&&s.distance>0)scaleObject(s.distance/lastTouchDistance);
+    lastTouchMid=s.mid;lastTouchDistance=s.distance;
+  }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);try{canvas.releasePointerCapture(e.pointerId)}catch{}
+  const touchPointers=[...pointers.values()].filter(p=>p.pointerType!=='mouse');
+  if(e.pointerType==='mouse'){lastSingle=null;mouseMode=null}
+  else if(touchPointers.length===1){lastSingle=touchPointers[0].point.clone();lastTouchMid=null;lastTouchDistance=null}
+  else{lastSingle=null;lastTouchMid=null;lastTouchDistance=null}
+}
+canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
+canvas.addEventListener('wheel',e=>{e.preventDefault();scaleObject(Math.exp(-e.deltaY*0.0012))},{passive:false});
 
 fileInput.addEventListener('change',e=>load(e.target.files));
 folderInput.addEventListener('change',e=>load(e.target.files));
 $('fit').addEventListener('click',resetView);
-autoRotate.addEventListener('change',()=>{controls.autoRotate=autoRotate.checked});
 exposure.addEventListener('input',()=>{renderer.toneMappingExposure=Number(exposure.value);exposureValue.textContent=Number(exposure.value).toFixed(2)});
 anim.addEventListener('change',()=>playClip(Number(anim.value)));
 play.addEventListener('click',()=>{if(!action)return;playing=!playing;action.paused=!playing;play.textContent=playing?'一時停止':'再生'});
 stop.addEventListener('click',()=>{if(mixer)mixer.stopAllAction();action=null;playing=false;play.textContent='再生'});
 
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2))});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));if(model){camera.lookAt(homeCameraTarget)}});
 
-(function loop(){requestAnimationFrame(loop);const d=clock.getDelta();if(mixer)mixer.update(d);controls.update();renderer.render(scene,camera)})();
+(function loop(){requestAnimationFrame(loop);const d=Math.min(clock.getDelta(),0.05);if(mixer)mixer.update(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,d*0.65);objectRoot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
 </script>
 </body>
 </html>
