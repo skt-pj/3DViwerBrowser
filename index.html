@@ -2,10 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>3D Viewer Browser</title>
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#eee;font-family:system-ui,sans-serif}#view{width:100vw;height:100vh;display:block}#ui{position:fixed;z-index:10;top:12px;left:12px;width:min(460px,calc(100vw - 24px));box-sizing:border-box;padding:12px;border-radius:10px;background:#141414e8;box-shadow:0 8px 24px #0008}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}input[type=file],select{width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #555;border-radius:7px;padding:7px}button,label.ctrl{background:#252525;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 9px;font-size:13px}button{cursor:pointer}button:disabled,select:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.45;margin-top:8px}.title{font-weight:700;margin-bottom:8px}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#eee;font-family:system-ui,sans-serif;touch-action:none}#view{width:100vw;height:100vh;display:block;touch-action:none}#ui{position:fixed;z-index:10;top:12px;left:12px;width:min(470px,calc(100vw - 24px));box-sizing:border-box;padding:12px;border-radius:10px;background:#141414e8;box-shadow:0 8px 24px #0008;touch-action:auto}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}input[type=file],select{width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #555;border-radius:7px;padding:7px}button,label.ctrl{background:#252525;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 9px;font-size:13px}button{cursor:pointer}button:disabled,select:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.45;margin-top:8px}.title{font-weight:700;margin-bottom:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script>
 </head>
@@ -13,18 +13,21 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:
 <canvas id="view"></canvas>
 <div id="ui">
 <div class="title">3Dモデルプレビュー</div>
+<div class="label">ファイル選択</div>
 <input id="files" type="file" multiple accept=".glb,.gltf,.obj,.mtl,.stl,.ply,.fbx,.dae,.bin,.png,.jpg,.jpeg,.webp,.bmp,.tga">
+<div class="label">フォルダ選択</div>
+<input id="folder" type="file" webkitdirectory multiple>
 <div class="row">
 <label class="ctrl"><input id="bright" type="checkbox" checked> 明るい表示</label>
 <label class="ctrl"><input id="rotate" type="checkbox"> 自動回転</label>
 <button id="fit">カメラリセット</button>
+<button id="resetRotation">回転リセット</button>
 </div>
 <div class="row"><select id="anim" disabled><option>アニメーションなし</option></select><button id="play" disabled>一時停止</button><button id="stop" disabled>停止</button></div>
-<div id="info" class="small">GLB / GLTF / OBJ / STL / PLY / FBX / DAE。OBJは OBJ・MTL・テクスチャ画像を同時選択してください。</div>
+<div id="info" class="small">ドラッグ: モデル回転（XYZ制限なし） / ホイール・ピンチ: ズーム。OBJは OBJ・MTL・テクスチャ画像を同時選択、またはフォルダ選択してください。</div>
 </div>
 <script type="module">
 import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 import {MTLLoader} from 'three/addons/loaders/MTLLoader.js';
@@ -34,37 +37,54 @@ import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
-const $=id=>document.getElementById(id),canvas=$('view'),fileInput=$('files'),bright=$('bright'),rotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info');
+const $=id=>document.getElementById(id);
+const canvas=$('view'),fileInput=$('files'),folderInput=$('folder'),bright=$('bright'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x111111);
-const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.01,100000);camera.position.set(3,2,4);
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.01,100000);camera.up.set(0,1,0);camera.position.set(0,0,4);camera.lookAt(0,0,0);
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;renderer.shadowMap.enabled=false;
-const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;
-scene.add(new THREE.GridHelper(10,10,0x555555,0x333333));scene.add(new THREE.AxesHelper(1.5));
-const ambient=new THREE.AmbientLight(0xffffff,2);scene.add(ambient);
+
+const grid=new THREE.GridHelper(10,10,0x555555,0x333333);scene.add(grid);
+const axes=new THREE.AxesHelper(1.5);scene.add(axes);
+scene.add(new THREE.AmbientLight(0xffffff,2));
 [[0,0,4,2.2],[-2.2,.8,4,1.5],[2.2,.8,4,1.5],[0,2.2,4,1.5],[0,-2.2,4,1.2]].forEach(([x,y,z,i])=>{const l=new THREE.DirectionalLight(0xffffff,i);l.position.set(x,y,z);l.castShadow=false;scene.add(l)});
-const clock=new THREE.Clock();let model=null,mixer=null,clips=[],action=null,playing=true,urls=[];
+
+const pivot=new THREE.Group();scene.add(pivot);
+const content=new THREE.Group();pivot.add(content);
+const clock=new THREE.Clock();
+let model=null,mixer=null,clips=[],action=null,playing=true,urls=[];
+let baseDistance=4,cameraDistance=4;
 const supported=new Set(['glb','gltf','obj','stl','ply','fbx','dae']);
 const ext=n=>n.includes('.')?n.split('.').pop().toLowerCase():'';
 const norm=s=>{try{s=decodeURIComponent(String(s||''))}catch{}return s.split('?')[0].split('#')[0].replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+/g,'/')};
 const base=s=>norm(s).split('/').pop().toLowerCase();
 function blob(file){const u=URL.createObjectURL(file);urls.push(u);return u}
-function mapFiles(files){const m=new Map();for(const f of files){for(const k of [f.name,f.webkitRelativePath].filter(Boolean)){const n=norm(k);m.set(n.toLowerCase(),f);m.set(base(n),f)}}m.files=files;return m}
+function mapFiles(files){const m=new Map();for(const f of files){for(const k of [f.name,f.webkitRelativePath].filter(Boolean)){const n=norm(k);m.set(n.toLowerCase(),f);m.set(base(n),f);const p=n.split('/');for(let i=1;i<p.length;i++)m.set(p.slice(i).join('/').toLowerCase(),f)}}m.files=files;return m}
 function findFile(m,url){const n=norm(url).toLowerCase(),b=base(n);if(m.has(n))return m.get(n);if(m.has(b))return m.get(b);for(const f of m.files||[]){const p=norm(f.webkitRelativePath||f.name).toLowerCase();if(p.endsWith('/'+n)||p.endsWith('/'+b))return f}return null}
 function managerFor(m){const mgr=new THREE.LoadingManager();mgr.addHandler(/\.tga$/i,new TGALoader());mgr.setURLModifier(u=>{const f=findFile(m,u);return f?blob(f):u});return mgr}
-function clean(){if(action)action.stop();if(mixer)mixer.stopAllAction();mixer=null;clips=[];action=null;anim.innerHTML='<option>アニメーションなし</option>';anim.disabled=play.disabled=stop.disabled=true;if(model){scene.remove(model);model=null}urls.forEach(URL.revokeObjectURL);urls=[]}
+function clean(){if(action)action.stop();if(mixer)mixer.stopAllAction();mixer=null;clips=[];action=null;anim.innerHTML='<option>アニメーションなし</option>';anim.disabled=play.disabled=stop.disabled=true;if(model){content.remove(model);model=null}content.position.set(0,0,0);pivot.quaternion.identity();urls.forEach(URL.revokeObjectURL);urls=[]}
 function materialList(m){return Array.isArray(m)?m:[m]}
 function normalizeMat(m){for(const x of materialList(m)){if(!x)continue;if(x.map){x.map.colorSpace=THREE.SRGBColorSpace;x.map.needsUpdate=true}x.needsUpdate=true}}
-function brightMat(src){const one=m=>{const x=new THREE.MeshBasicMaterial({color:m?.map?0xffffff:(m?.color?m.color.clone():0xffffff),map:m?.map||null,alphaMap:m?.alphaMap||null,vertexColors:!!m?.vertexColors,side:THREE.DoubleSide,transparent:!!(m?.transparent||(m?.opacity??1)<1),opacity:m?.opacity??1,alphaTest:m?.alphaTest??0});x.userData.bright=true;normalizeMat(x);return x};return Array.isArray(src)?src.map(one):one(src)}
+function brightMat(src){const one=m=>{const x=new THREE.MeshBasicMaterial({color:m?.map?0xffffff:(m?.color?m.color.clone():0xffffff),map:m?.map||null,alphaMap:m?.alphaMap||null,vertexColors:!!m?.vertexColors,side:THREE.DoubleSide,transparent:!!(m?.transparent||(m?.opacity??1)<1),opacity:m?.opacity??1,alphaTest:m?.alphaTest??0,depthTest:true,depthWrite:true});x.userData.bright=true;normalizeMat(x);return x};return Array.isArray(src)?src.map(one):one(src)}
 function applyBright(on){if(!model)return;model.traverse(o=>{if(!o.isMesh)return;const orig=o.userData.orig||o.material;o.userData.orig=orig;if(on){const ms=materialList(o.material);if(!ms.every(x=>x?.userData?.bright))o.material=brightMat(orig)}else o.material=orig;normalizeMat(o.material)})}
 function prep(root){root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.receiveShadow=false;if(!o.material)o.material=new THREE.MeshStandardMaterial({color:0xdddddd});normalizeMat(o.material);o.userData.orig=o.material});applyBright(bright.checked)}
-function fit(){if(!model)return;const box=new THREE.Box3().setFromObject(model),c=new THREE.Vector3(),s=new THREE.Vector3();box.getCenter(c);model.position.sub(c);new THREE.Box3().setFromObject(model).getSize(s);const max=Math.max(s.x,s.y,s.z)||1,dist=max/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.8;camera.near=Math.max(dist/1000,.001);camera.far=Math.max(dist*1000,1000);camera.updateProjectionMatrix();camera.position.set(dist,dist*.7,dist);controls.target.set(0,0,0);controls.update()}
+function fit(){if(!model)return;pivot.quaternion.identity();content.position.set(0,0,0);model.updateWorldMatrix(true,true);const box=new THREE.Box3().setFromObject(model);const center=new THREE.Vector3(),size=new THREE.Vector3(),sphere=new THREE.Sphere();box.getCenter(center);box.getSize(size);box.getBoundingSphere(sphere);content.position.copy(center).multiplyScalar(-1);const radius=Math.max(sphere.radius,.001);const vfov=THREE.MathUtils.degToRad(camera.fov);const hfov=2*Math.atan(Math.tan(vfov/2)*camera.aspect);const limitingFov=Math.min(vfov,hfov);baseDistance=radius/Math.sin(limitingFov/2)*1.18;cameraDistance=baseDistance;camera.near=Math.max(baseDistance/1000,.001);camera.far=Math.max(baseDistance*1000,1000);camera.updateProjectionMatrix();camera.position.set(0,0,cameraDistance);camera.lookAt(0,0,0);grid.position.y=-size.y/2;grid.scale.setScalar(Math.max(Math.max(size.x,size.z)/10,.1));axes.scale.setScalar(Math.max(radius*.65,.25))}
+function updateCameraDistance(){cameraDistance=THREE.MathUtils.clamp(cameraDistance,baseDistance*.15,baseDistance*10);camera.position.set(0,0,cameraDistance);camera.lookAt(0,0,0)}
 function setupAnim(root,a){clips=(a||[]).filter(c=>c?.tracks?.length);if(!clips.length)return;mixer=new THREE.AnimationMixer(root);anim.innerHTML='';clips.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name?.trim()||`Animation ${i+1}`;anim.appendChild(o)});anim.disabled=play.disabled=stop.disabled=false;anim.value='0';playClip(0)}
 function playClip(i){if(!mixer||!clips[i])return;mixer.stopAllAction();action=mixer.clipAction(clips[i]);action.reset().setLoop(THREE.LoopRepeat,Infinity).play();playing=true;play.textContent='一時停止'}
 const promiseLoad=(loader,url,convert=x=>x)=>new Promise((res,rej)=>loader.load(url,x=>res(convert(x)),undefined,rej));
-async function load(files){files=[...files];const main=files.find(f=>supported.has(ext(f.name)));if(!main){info.textContent='対応モデルがありません';return}clean();info.textContent='読み込み中: '+main.name;const fm=mapFiles(files),mgr=managerFor(fm),url=blob(main),e=ext(main.name);try{let r;if(e==='glb'||e==='gltf')r=await promiseLoad(new GLTFLoader(mgr),url,g=>({object:g.scene,animations:g.animations||[]}));else if(e==='obj'){const ol=new OBJLoader(mgr),mtl=files.find(f=>ext(f.name)==='mtl');if(mtl){const mats=await promiseLoad(new MTLLoader(mgr),blob(mtl));mats.preload();ol.setMaterials(mats)}r=await promiseLoad(ol,url,o=>({object:o,animations:[]}))}else if(e==='stl')r=await promiseLoad(new STLLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xdddddd})),animations:[]}});else if(e==='ply')r=await promiseLoad(new PLYLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xdddddd,vertexColors:g.hasAttribute('color')})),animations:[]}});else if(e==='fbx')r=await promiseLoad(new FBXLoader(mgr),url,o=>({object:o,animations:o.animations||[]}));else if(e==='dae')r=await promiseLoad(new ColladaLoader(mgr),url,c=>({object:c.scene,animations:c.animations||[]}));model=r.object;scene.add(model);prep(model);fit();setupAnim(model,r.animations);info.textContent=`表示中: ${main.name} / アニメーション: ${clips.length}件`}catch(err){console.error(err);info.textContent='読み込み失敗: '+err.message}}
-fileInput.addEventListener('change',e=>load(e.target.files));bright.addEventListener('change',()=>applyBright(bright.checked));$('fit').addEventListener('click',fit);anim.addEventListener('change',()=>playClip(Number(anim.value)));play.addEventListener('click',()=>{if(!action)return;playing=!playing;action.paused=!playing;play.textContent=playing?'一時停止':'再生'});stop.addEventListener('click',()=>{if(mixer)mixer.stopAllAction();action=null;playing=false;play.textContent='再生'});
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-(function loop(){requestAnimationFrame(loop);const d=clock.getDelta();if(mixer)mixer.update(d);if(model&&rotate.checked)model.rotation.y+=.01;controls.update();renderer.render(scene,camera)})();
+async function load(files){files=[...files];const main=files.find(f=>supported.has(ext(f.name)));if(!main){info.textContent='対応モデルがありません';return}clean();info.textContent='読み込み中: '+main.name;const fm=mapFiles(files),mgr=managerFor(fm),url=blob(main),e=ext(main.name);try{let r;if(e==='glb'||e==='gltf')r=await promiseLoad(new GLTFLoader(mgr),url,g=>({object:g.scene,animations:g.animations||[]}));else if(e==='obj'){const ol=new OBJLoader(mgr),mtl=files.find(f=>ext(f.name)==='mtl');if(mtl){const mats=await promiseLoad(new MTLLoader(mgr),blob(mtl));mats.preload();ol.setMaterials(mats)}r=await promiseLoad(ol,url,o=>({object:o,animations:[]}))}else if(e==='stl')r=await promiseLoad(new STLLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xdddddd})),animations:[]}});else if(e==='ply')r=await promiseLoad(new PLYLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xdddddd,vertexColors:g.hasAttribute('color')})),animations:[]}});else if(e==='fbx')r=await promiseLoad(new FBXLoader(mgr),url,o=>({object:o,animations:o.animations||[]}));else if(e==='dae')r=await promiseLoad(new ColladaLoader(mgr),url,c=>({object:c.scene,animations:c.animations||[]}));model=r.object;content.add(model);prep(model);fit();setupAnim(model,r.animations);const b=new THREE.Box3().setFromObject(model),s=new THREE.Vector3();b.getSize(s);info.textContent=`表示中: ${main.name} / X=${s.x.toFixed(3)} Y=${s.y.toFixed(3)} Z=${s.z.toFixed(3)} / アニメーション: ${clips.length}件`}catch(err){console.error(err);info.textContent='読み込み失敗: '+err.message}}
+
+const pointers=new Map();let lastSingle=null,lastPinch=null;
+function pointerPoint(e){return new THREE.Vector2(e.clientX,e.clientY)}
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,pointerPoint(e));if(pointers.size===1){lastSingle=pointerPoint(e);lastPinch=null}else if(pointers.size===2){const p=[...pointers.values()];lastPinch=p[0].distanceTo(p[1]);lastSingle=null}});
+canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;const now=pointerPoint(e);pointers.set(e.pointerId,now);if(pointers.size===1&&lastSingle&&model){const dx=now.x-lastSingle.x,dy=now.y-lastSingle.y;const qYaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*.008);const qPitch=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-dy*.008);pivot.quaternion.premultiply(qYaw);pivot.quaternion.premultiply(qPitch);pivot.quaternion.normalize();lastSingle.copy(now)}else if(pointers.size===2&&model){const p=[...pointers.values()],d=p[0].distanceTo(p[1]);if(lastPinch&&d>0){cameraDistance*=lastPinch/d;updateCameraDistance()}lastPinch=d}});
+function endPointer(e){pointers.delete(e.pointerId);try{canvas.releasePointerCapture(e.pointerId)}catch{}if(pointers.size===1){lastSingle=[...pointers.values()][0].clone();lastPinch=null}else{lastSingle=null;lastPinch=null}}
+canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
+canvas.addEventListener('wheel',e=>{e.preventDefault();if(!model)return;cameraDistance*=Math.exp(e.deltaY*.001);updateCameraDistance()},{passive:false});
+
+fileInput.addEventListener('change',e=>load(e.target.files));folderInput.addEventListener('change',e=>load(e.target.files));bright.addEventListener('change',()=>applyBright(bright.checked));$('fit').addEventListener('click',fit);$('resetRotation').addEventListener('click',()=>pivot.quaternion.identity());anim.addEventListener('change',()=>playClip(Number(anim.value)));play.addEventListener('click',()=>{if(!action)return;playing=!playing;action.paused=!playing;play.textContent=playing?'一時停止':'再生'});stop.addEventListener('click',()=>{if(mixer)mixer.stopAllAction();action=null;playing=false;play.textContent='再生'});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(model)fit()});
+(function loop(){requestAnimationFrame(loop);const d=clock.getDelta();if(mixer)mixer.update(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-.012);pivot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
 </script>
 </body>
 </html>
