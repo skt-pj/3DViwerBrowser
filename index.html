@@ -41,7 +41,7 @@ button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45
       <div class="exposure"><span>明るさ</span><input id="exposure" type="range" min="0.55" max="1.60" step="0.05" value="0.90"><span id="exposureValue" class="value">0.90</span></div>
     </div>
     <div class="row"><select id="anim" disabled><option>アニメーションなし</option></select><button id="play" disabled>一時停止</button><button id="stop" disabled>停止</button></div>
-    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。マス目とカメラは固定です。3DGS PLYは自動判定します。</div>
+    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。キーボード: W/A/S/D=前後左右、Q/E=上下、Shift=高速。マス目とカメラは固定です。3DGS PLYは自動判定します。</div>
     <div id="loadProgress" class="loadProgress" hidden>
       <div id="loadProgressText" class="loadProgressText"></div>
       <div class="loadProgressTrack"><div id="loadProgressBar" class="loadProgressBar"></div></div>
@@ -110,6 +110,7 @@ let model=null,mixer=null,clips=[],action=null,playing=true,urls=[];
 let sparkRenderer=null,sparkModulePromise=null,isGaussianSplat=false,isLoading=false;
 let modelRadius=1,modelHalfHeight=0.5,objectScale=1;
 const panOffset=new THREE.Vector3();
+const pressedKeys=new Set();
 const homeQuaternion=new THREE.Quaternion();
 let homeCameraPosition=new THREE.Vector3(3,0.3,4),homeCameraTarget=new THREE.Vector3(0,0.5,0);
 
@@ -373,6 +374,50 @@ function panObject(dx,dy){
 }
 function scaleObject(factor){if(!model||!Number.isFinite(factor)||factor<=0)return;objectScale*=factor;updateObjectTransform()}
 
+function isTextInputFocused(){
+  const el=document.activeElement;
+  return el&&(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(el.tagName)||el.isContentEditable);
+}
+function keyboardMove(delta){
+  if(!model||isTextInputFocused())return;
+
+  let forward=0,right=0,up=0;
+  if(pressedKeys.has('KeyW')||pressedKeys.has('ArrowUp'))forward+=1;
+  if(pressedKeys.has('KeyS')||pressedKeys.has('ArrowDown'))forward-=1;
+  if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))right+=1;
+  if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))right-=1;
+  if(pressedKeys.has('KeyE'))up+=1;
+  if(pressedKeys.has('KeyQ'))up-=1;
+  if(forward===0&&right===0&&up===0)return;
+
+  const cameraForward=new THREE.Vector3();
+  camera.getWorldDirection(cameraForward);
+  cameraForward.y=0;
+  if(cameraForward.lengthSq()<1e-8)cameraForward.set(0,0,-1);
+  else cameraForward.normalize();
+
+  const cameraRight=new THREE.Vector3().crossVectors(cameraForward,Y_AXIS).normalize();
+  const move=new THREE.Vector3();
+  move.addScaledVector(cameraForward,forward);
+  move.addScaledVector(cameraRight,right);
+  move.y+=up;
+  if(move.lengthSq()>1)move.normalize();
+
+  const fast=pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight');
+  const speed=Math.max(modelRadius,0.1)*(fast?2.4:0.8);
+  panOffset.addScaledVector(move,speed*delta);
+  updateObjectTransform();
+}
+
+addEventListener('keydown',e=>{
+  const movementKeys=new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight']);
+  if(!movementKeys.has(e.code)||isTextInputFocused())return;
+  pressedKeys.add(e.code);
+  if(e.code.startsWith('Arrow'))e.preventDefault();
+});
+addEventListener('keyup',e=>pressedKeys.delete(e.code));
+addEventListener('blur',()=>pressedKeys.clear());
+
 const pointers=new Map();
 let lastSingle=null,lastTouchMid=null,lastTouchDistance=null,mouseMode=null;
 const point=e=>new THREE.Vector2(e.clientX,e.clientY);
@@ -428,7 +473,7 @@ stop.addEventListener('click',()=>{if(mixer)mixer.stopAllAction();action=null;pl
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);updateRendererQuality();if(model){camera.lookAt(homeCameraTarget)}});
 
-(function loop(){requestAnimationFrame(loop);const d=Math.min(clock.getDelta(),0.05);if(mixer)mixer.update(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,d*0.65);objectRoot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
+(function loop(){requestAnimationFrame(loop);const d=Math.min(clock.getDelta(),0.05);if(mixer)mixer.update(d);keyboardMove(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,d*0.65);objectRoot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
 </script>
 </body>
 </html>
