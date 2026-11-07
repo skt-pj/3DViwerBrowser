@@ -13,7 +13,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#272a2f;col
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
 input[type=file],select{width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #555;border-radius:7px;padding:7px}
 button,label.ctrl,.exposure{background:#252525;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 9px;font-size:13px}
-button{cursor:pointer}button:disabled,select:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.5;margin-top:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}.exposure{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}.exposure input{flex:1}.value{display:inline-block;min-width:34px;text-align:right}
+button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.5;margin-top:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}.exposure{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}.exposure input{flex:1}.value{display:inline-block;min-width:34px;text-align:right}.loadProgress{margin-top:8px}.loadProgressText{font-size:11px;color:#c7cbd1;margin-bottom:4px}.loadProgressTrack{height:5px;border-radius:999px;background:#30343a;overflow:hidden}.loadProgressBar{width:0;height:100%;background:#9aa4b2;transition:width .08s linear}
 @media(max-width:700px){
   #ui{top:8px;left:8px;width:calc(100vw - 16px);padding:10px;border-radius:9px}
   #ui.collapsed{top:8px;left:8px;width:auto;max-width:calc(100vw - 16px);padding:7px 9px}
@@ -21,7 +21,7 @@ button{cursor:pointer}button:disabled,select:disabled{opacity:.45}.small{font-si
   button,label.ctrl,.exposure{padding:6px 8px;font-size:12px}.small{font-size:11px}
 }
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@sparkjsdev/spark":"https://sparkjs.dev/releases/spark/2.4.0/spark.module.js"}}</script>
 </head>
 <body>
 <canvas id="view"></canvas>
@@ -41,7 +41,11 @@ button{cursor:pointer}button:disabled,select:disabled{opacity:.45}.small{font-si
       <div class="exposure"><span>明るさ</span><input id="exposure" type="range" min="0.55" max="1.60" step="0.05" value="0.90"><span id="exposureValue" class="value">0.90</span></div>
     </div>
     <div class="row"><select id="anim" disabled><option>アニメーションなし</option></select><button id="play" disabled>一時停止</button><button id="stop" disabled>停止</button></div>
-    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。マス目とカメラは固定です。</div>
+    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。マス目とカメラは固定です。3DGS PLYは自動判定します。</div>
+    <div id="loadProgress" class="loadProgress" hidden>
+      <div id="loadProgressText" class="loadProgressText"></div>
+      <div class="loadProgressTrack"><div id="loadProgressBar" class="loadProgressBar"></div></div>
+    </div>
   </div>
 </div>
 <script type="module">
@@ -57,7 +61,7 @@ import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
 const $=id=>document.getElementById(id);
-const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue');
+const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue'),loadProgress=$('loadProgress'),loadProgressText=$('loadProgressText'),loadProgressBar=$('loadProgressBar');
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x272a2f);
@@ -103,6 +107,7 @@ scene.add(objectRoot);
 
 const clock=new THREE.Clock();
 let model=null,mixer=null,clips=[],action=null,playing=true,urls=[];
+let sparkRenderer=null,sparkModulePromise=null,isGaussianSplat=false,isLoading=false;
 let modelRadius=1,modelHalfHeight=0.5,objectScale=1;
 const panOffset=new THREE.Vector3();
 const homeQuaternion=new THREE.Quaternion();
@@ -120,8 +125,87 @@ function managerFor(m){const mgr=new THREE.LoadingManager();mgr.addHandler(/\.tg
 function setUICollapsed(collapsed){ui.classList.toggle('collapsed',collapsed);uiToggle.textContent=collapsed?'設定':'隠す';uiToggle.setAttribute('aria-expanded',String(!collapsed))}
 uiToggle.addEventListener('click',()=>setUICollapsed(!ui.classList.contains('collapsed')));
 
+function formatBytes(bytes){
+  if(!Number.isFinite(bytes)||bytes<=0)return '0 B';
+  const units=['B','KB','MB','GB'];let value=bytes,i=0;
+  while(value>=1024&&i<units.length-1){value/=1024;i++}
+  return `${value.toFixed(i===0?0:value>=100?0:value>=10?1:2)} ${units[i]}`;
+}
+function setLoadingState(active){
+  isLoading=active;
+  fileInput.disabled=folderInput.disabled=active;
+}
+function showLoadProgress(label,loaded=0,total=0){
+  loadProgress.hidden=false;
+  const safeTotal=total>0?total:0;
+  const ratio=safeTotal?THREE.MathUtils.clamp(loaded/safeTotal,0,1):0;
+  loadProgressBar.style.width=(ratio*100).toFixed(1)+'%';
+  loadProgressText.textContent=safeTotal?`${label} ${formatBytes(loaded)} / ${formatBytes(safeTotal)} (${(ratio*100).toFixed(1)}%)`:`${label} ${formatBytes(loaded)}`;
+}
+function hideLoadProgress(){loadProgress.hidden=true;loadProgressBar.style.width='0%';loadProgressText.textContent=''}
+function updateRendererQuality(){
+  const mobile=matchMedia('(max-width:700px)').matches;
+  const cap=isGaussianSplat?(mobile?1.0:1.35):2;
+  renderer.setPixelRatio(Math.min(devicePixelRatio,cap));
+}
+async function ensureSpark(){
+  if(!sparkModulePromise)sparkModulePromise=import('@sparkjsdev/spark');
+  const spark=await sparkModulePromise;
+  if(!sparkRenderer){
+    sparkRenderer=new spark.SparkRenderer({renderer});
+    scene.add(sparkRenderer);
+  }
+  return spark;
+}
+async function inspectPly(file){
+  const headerText=await file.slice(0,262144).text();
+  const end=headerText.toLowerCase().indexOf('end_header');
+  const header=(end>=0?headerText.slice(0,end):headerText).toLowerCase();
+  const compressed=header.includes('element chunk')&&header.includes('packed_position')&&header.includes('packed_rotation')&&header.includes('packed_scale');
+  const standard3dgs=header.includes('opacity')&&header.includes('scale_0')&&header.includes('rot_0')&&(header.includes('f_dc_0')||header.includes('features_dc'));
+  return {isGaussian:compressed||standard3dgs,compressed};
+}
+async function loadGaussianPly(file){
+  const spark=await ensureSpark();
+  isGaussianSplat=true;
+  updateRendererQuality();
+  showLoadProgress('3DGS PLYをストリーム読み込み中',0,file.size);
+  const options={
+    fileName:file.name,
+    streamLength:file.size,
+    editable:false,
+    raycastable:false,
+    lod:file.size>=150*1024*1024,
+    lodAbove:500000,
+    nonLod:false,
+    onProgress:event=>{
+      const loaded=Number(event?.loaded)||0;
+      const total=Number(event?.total)||file.size;
+      showLoadProgress('3DGS PLYを読み込み・変換中',loaded,total);
+    }
+  };
+  if(typeof file.stream==='function')options.stream=file.stream();
+  else options.fileBytes=await file.arrayBuffer();
+  const splat=new spark.SplatMesh(options);
+  splat.userData.isGaussianSplat=true;
+  await splat.initialized;
+  splat.quaternion.set(1,0,0,0);
+  showLoadProgress('3DGS PLYの初期化完了',file.size,file.size);
+  return {object:splat,animations:[]};
+}
+
 function resetAnimationUI(){anim.innerHTML='<option>アニメーションなし</option>';anim.disabled=play.disabled=stop.disabled=true;playing=false;play.textContent='再生'}
-function clean(){if(action)action.stop();if(mixer)mixer.stopAllAction();mixer=null;clips=[];action=null;resetAnimationUI();if(model){contentRoot.remove(model);disposeObject(model);model=null}contentRoot.position.set(0,0,0);objectRoot.position.set(0,0,0);objectRoot.quaternion.identity();objectRoot.scale.setScalar(1);objectScale=1;panOffset.set(0,0,0);urls.forEach(URL.revokeObjectURL);urls=[]}
+function clean(){
+  if(action)action.stop();if(mixer)mixer.stopAllAction();mixer=null;clips=[];action=null;resetAnimationUI();
+  if(model){
+    contentRoot.remove(model);
+    if(model.userData?.isGaussianSplat&&typeof model.dispose==='function')model.dispose();
+    else disposeObject(model);
+    model=null;
+  }
+  isGaussianSplat=false;updateRendererQuality();
+  contentRoot.position.set(0,0,0);objectRoot.position.set(0,0,0);objectRoot.quaternion.identity();objectRoot.scale.setScalar(1);objectScale=1;panOffset.set(0,0,0);urls.forEach(URL.revokeObjectURL);urls=[];
+}
 function disposeObject(root){root.traverse(o=>{if(o.geometry)o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];for(const m of mats){if(!m)continue;for(const key of Object.keys(m)){const v=m[key];if(v&&v.isTexture)v.dispose()}m.dispose()}})}
 function materialList(m){return Array.isArray(m)?m:[m]}
 
@@ -153,12 +237,21 @@ function updateObjectTransform(){
   objectRoot.scale.setScalar(objectScale);
   objectRoot.position.set(panOffset.x,panOffset.y+modelHalfHeight*objectScale,panOffset.z);
 }
+function getModelBox(){
+  if(!model)return new THREE.Box3();
+  model.updateWorldMatrix(true,true);
+  if(model.userData?.isGaussianSplat&&typeof model.getBoundingBox==='function'){
+    const box=model.getBoundingBox(true).clone();
+    box.applyMatrix4(model.matrixWorld);
+    return box;
+  }
+  return new THREE.Box3().setFromObject(model);
+}
 
 function frameModel(){
   if(!model)return;
   objectRoot.position.set(0,0,0);objectRoot.quaternion.identity();objectRoot.scale.setScalar(1);contentRoot.position.set(0,0,0);panOffset.set(0,0,0);objectScale=1;
-  model.updateWorldMatrix(true,true);
-  const box=new THREE.Box3().setFromObject(model);
+  const box=getModelBox();
   const center=box.getCenter(new THREE.Vector3());
   const size=box.getSize(new THREE.Vector3());
   const sphere=box.getBoundingSphere(new THREE.Sphere());
@@ -206,7 +299,10 @@ async function load(files){
   files=[...files];
   const main=files.find(f=>supported.has(ext(f.name)));
   if(!main){info.textContent='対応モデルがありません';return}
+  if(isLoading){info.textContent='現在の大容量ファイル読み込みが完了してから選択してください';return}
+  setLoadingState(true);
   clean();
+  hideLoadProgress();
   info.textContent='読み込み中: '+main.name;
   const fm=mapFiles(files),mgr=managerFor(fm),url=blob(main),e=ext(main.name);
   try{
@@ -220,7 +316,12 @@ async function load(files){
     }else if(e==='stl'){
       r=await promiseLoad(new STLLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xb8bdc4,roughness:.74,metalness:0})),animations:[]}});
     }else if(e==='ply'){
-      r=await promiseLoad(new PLYLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xb8bdc4,vertexColors:g.hasAttribute('color'),roughness:.74,metalness:0})),animations:[]}});
+      const plyInfo=await inspectPly(main);
+      if(plyInfo.isGaussian){
+        r=await loadGaussianPly(main);
+      }else{
+        r=await promiseLoad(new PLYLoader(mgr),url,g=>{g.computeVertexNormals();return{object:new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xb8bdc4,vertexColors:g.hasAttribute('color'),roughness:.74,metalness:0})),animations:[]}});
+      }
     }else if(e==='fbx'){
       r=await promiseLoad(new FBXLoader(mgr),url,o=>({object:o,animations:o.animations||[]}));
     }else if(e==='dae'){
@@ -233,10 +334,23 @@ async function load(files){
     frameModel();
     setupAnim(model,r.animations);
 
-    const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3());
-    info.textContent=`表示中: ${main.name} / X=${size.x.toFixed(3)} Y=${size.y.toFixed(3)} Z=${size.z.toFixed(3)} / アニメーション: ${clips.length}件`;
+    const box=getModelBox(),size=box.getSize(new THREE.Vector3());
+    if(isGaussianSplat){
+      const count=Number(model.numSplats)||0;
+      info.textContent=`表示中: ${main.name} / 3DGS ${formatBytes(main.size)} / ${count.toLocaleString()} splats / X=${size.x.toFixed(3)} Y=${size.y.toFixed(3)} Z=${size.z.toFixed(3)}`;
+    }else{
+      info.textContent=`表示中: ${main.name} / X=${size.x.toFixed(3)} Y=${size.y.toFixed(3)} Z=${size.z.toFixed(3)} / アニメーション: ${clips.length}件`;
+    }
+    hideLoadProgress();
     if(matchMedia('(max-width:700px)').matches)setTimeout(()=>setUICollapsed(true),250);
-  }catch(err){console.error(err);info.textContent='読み込み失敗: '+err.message}
+  }catch(err){
+    console.error(err);
+    hideLoadProgress();
+    info.textContent='読み込み失敗: '+err.message;
+    if(model?.userData?.isGaussianSplat&&typeof model.dispose==='function')model.dispose();
+  }finally{
+    setLoadingState(false);
+  }
 }
 
 const Y_AXIS=new THREE.Vector3(0,1,0),X_AXIS=new THREE.Vector3(1,0,0);
@@ -312,7 +426,7 @@ anim.addEventListener('change',()=>playClip(Number(anim.value)));
 play.addEventListener('click',()=>{if(!action)return;playing=!playing;action.paused=!playing;play.textContent=playing?'一時停止':'再生'});
 stop.addEventListener('click',()=>{if(mixer)mixer.stopAllAction();action=null;playing=false;play.textContent='再生'});
 
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));if(model){camera.lookAt(homeCameraTarget)}});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);updateRendererQuality();if(model){camera.lookAt(homeCameraTarget)}});
 
 (function loop(){requestAnimationFrame(loop);const d=Math.min(clock.getDelta(),0.05);if(mixer)mixer.update(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,d*0.65);objectRoot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
 </script>
