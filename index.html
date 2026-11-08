@@ -422,7 +422,10 @@ function applyMovement(delta){
   if(cameraForward.lengthSq()<1e-8)cameraForward.set(0,0,-1);
   else cameraForward.normalize();
 
-  const cameraRight=new THREE.Vector3().crossVectors(cameraForward,Y_AXIS).normalize();
+  const cameraRight=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  cameraRight.y=0;
+  if(cameraRight.lengthSq()<1e-8)cameraRight.set(1,0,0);
+  else cameraRight.normalize();
   const move=new THREE.Vector3();
 
   // Keyboard keeps the established project direction.
@@ -459,8 +462,9 @@ function updateMobileStick(e){
   let y=(e.clientY-(rect.top+rect.height*0.5))/(rect.height*0.5);
   const length=Math.hypot(x,y);
   if(length>1){x/=length;y/=length}
-  mobileMoveX=-x;
-  mobileMoveForward=y;
+  // Standard joystick input: right = +X, up = +Forward.
+  mobileMoveX=x;
+  mobileMoveForward=-y;
   const knobRange=rect.width*0.28;
   moveKnob.style.transform=`translate(${(x*knobRange).toFixed(1)}px,${(y*knobRange).toFixed(1)}px)`;
 }
