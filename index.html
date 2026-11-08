@@ -128,7 +128,7 @@ let sparkRenderer=null,sparkModulePromise=null,isGaussianSplat=false,isLoading=f
 let modelRadius=1,modelHalfHeight=0.5,objectScale=1;
 const panOffset=new THREE.Vector3();
 const pressedKeys=new Set();
-let mobileMoveX=0,mobileMoveForward=0,mobileMoveVertical=0,mobileStickPointerId=null;
+let mobileMoveRight=0,mobileMoveForward=0,mobileMoveVertical=0,mobileStickPointerId=null;
 const homeQuaternion=new THREE.Quaternion();
 let homeCameraPosition=new THREE.Vector3(3,0.3,4),homeCameraTarget=new THREE.Vector3(0,0.5,0);
 
@@ -145,7 +145,7 @@ function setUICollapsed(collapsed){ui.classList.toggle('collapsed',collapsed);ui
 uiToggle.addEventListener('click',()=>setUICollapsed(!ui.classList.contains('collapsed')));
 function updateMobileControls(){mobileControls.classList.toggle('ready',Boolean(model))}
 function resetMobileMovement(){
-  mobileMoveX=0;mobileMoveForward=0;mobileMoveVertical=0;mobileStickPointerId=null;
+  mobileMoveRight=0;mobileMoveForward=0;mobileMoveVertical=0;mobileStickPointerId=null;
   moveKnob.style.transform='translate(0px,0px)';
   moveUp.classList.remove('active');moveDown.classList.remove('active');
 }
@@ -416,26 +416,39 @@ function applyMovement(delta){
     if(pressedKeys.has('KeyQ'))keyboardUp-=1;
   }
 
-  const cameraForward=new THREE.Vector3();
-  camera.getWorldDirection(cameraForward);
-  cameraForward.y=0;
-  if(cameraForward.lengthSq()<1e-8)cameraForward.set(0,0,-1);
-  else cameraForward.normalize();
+  // Keyboard keeps its existing ground-plane behavior.
+  const keyboardForwardVector=new THREE.Vector3();
+  camera.getWorldDirection(keyboardForwardVector);
+  keyboardForwardVector.y=0;
+  if(keyboardForwardVector.lengthSq()<1e-8)keyboardForwardVector.set(0,0,-1);
+  else keyboardForwardVector.normalize();
 
-  const cameraRight=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
-  cameraRight.y=0;
-  if(cameraRight.lengthSq()<1e-8)cameraRight.set(1,0,0);
-  else cameraRight.normalize();
+  const keyboardRightVector=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  keyboardRightVector.y=0;
+  if(keyboardRightVector.lengthSq()<1e-8)keyboardRightVector.set(1,0,0);
+  else keyboardRightVector.normalize();
+
+  // Mobile stick uses the camera's actual 3D viewing basis.
+  const mobileForwardVector=new THREE.Vector3();
+  camera.getWorldDirection(mobileForwardVector);
+  if(mobileForwardVector.lengthSq()<1e-8)mobileForwardVector.set(0,0,-1);
+  else mobileForwardVector.normalize();
+
+  const mobileRightVector=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  if(mobileRightVector.lengthSq()<1e-8)mobileRightVector.set(1,0,0);
+  else mobileRightVector.normalize();
+
   const move=new THREE.Vector3();
 
-  // Keyboard keeps the established project direction.
-  move.addScaledVector(cameraForward,keyboardForward);
-  move.addScaledVector(cameraRight,keyboardRight);
+  // Keyboard behavior is unchanged.
+  move.addScaledVector(keyboardForwardVector,keyboardForward);
+  move.addScaledVector(keyboardRightVector,keyboardRight);
   move.y+=keyboardUp;
 
-  // Mobile stick is camera-relative: stick up always moves toward camera forward.
-  move.addScaledVector(cameraForward,mobileMoveForward);
-  move.addScaledVector(cameraRight,mobileMoveX);
+  // Joystick up/down follows the camera's true viewing direction, including pitch.
+  // Joystick left/right follows the camera's true local right direction.
+  move.addScaledVector(mobileForwardVector,mobileMoveForward);
+  move.addScaledVector(mobileRightVector,mobileMoveRight);
   move.y+=mobileMoveVertical;
 
   if(move.lengthSq()===0)return;
@@ -462,8 +475,8 @@ function updateMobileStick(e){
   let y=(e.clientY-(rect.top+rect.height*0.5))/(rect.height*0.5);
   const length=Math.hypot(x,y);
   if(length>1){x/=length;y/=length}
-  // Standard joystick input: right = +X, up = +Forward.
-  mobileMoveX=x;
+  // Logical joystick input only: right = +Right, up = +Forward.
+  mobileMoveRight=x;
   mobileMoveForward=-y;
   const knobRange=rect.width*0.28;
   moveKnob.style.transform=`translate(${(x*knobRange).toFixed(1)}px,${(y*knobRange).toFixed(1)}px)`;
@@ -472,7 +485,7 @@ function endMobileStick(e){
   if(mobileStickPointerId!==e.pointerId)return;
   try{moveStick.releasePointerCapture(e.pointerId)}catch{}
   mobileStickPointerId=null;
-  mobileMoveX=0;mobileMoveForward=0;
+  mobileMoveRight=0;mobileMoveForward=0;
   moveKnob.style.transform='translate(0px,0px)';
 }
 moveStick.addEventListener('pointerdown',e=>{
