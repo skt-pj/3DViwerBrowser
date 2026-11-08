@@ -459,8 +459,8 @@ function updateMobileStick(e){
   let y=(e.clientY-(rect.top+rect.height*0.5))/(rect.height*0.5);
   const length=Math.hypot(x,y);
   if(length>1){x/=length;y/=length}
-  mobileMoveX=x;
-  mobileMoveForward=-y;
+  mobileMoveX=-x;
+  mobileMoveForward=y;
   const knobRange=rect.width*0.28;
   moveKnob.style.transform=`translate(${(x*knobRange).toFixed(1)}px,${(y*knobRange).toFixed(1)}px)`;
 }
