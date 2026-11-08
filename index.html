@@ -429,8 +429,8 @@ function applyMovement(delta){
 
   const rightVector=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
   rightVector.y=0;
-  if(rightVector.lengthSq()<1e-8)rightVector.set(1,0,0);
-  else rightVector.normalize();
+  if(rightVector.lengthSq()<1e-8)rightVector.set(-1,0,0);
+  else rightVector.normalize().multiplyScalar(-1);
 
   const move=new THREE.Vector3();
   move.addScaledVector(forwardVector,forward);
