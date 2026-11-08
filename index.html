@@ -14,11 +14,19 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#272a2f;col
 input[type=file],select{width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #555;border-radius:7px;padding:7px}
 button,label.ctrl,.exposure{background:#252525;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 9px;font-size:13px}
 button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.5;margin-top:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}.exposure{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}.exposure input{flex:1}.value{display:inline-block;min-width:34px;text-align:right}.loadProgress{margin-top:8px}.loadProgressText{font-size:11px;color:#c7cbd1;margin-bottom:4px}.loadProgressTrack{height:5px;border-radius:999px;background:#30343a;overflow:hidden}.loadProgressBar{width:0;height:100%;background:#9aa4b2;transition:width .08s linear}
+#mobileControls{display:none;position:fixed;z-index:12;left:16px;right:16px;bottom:max(18px,env(safe-area-inset-bottom));align-items:flex-end;justify-content:space-between;pointer-events:none}
+.moveStick{position:relative;width:112px;height:112px;border-radius:50%;background:#141414b8;border:1px solid #ffffff42;box-shadow:0 6px 18px #0008;touch-action:none;pointer-events:auto;user-select:none;-webkit-user-select:none}
+.moveStick::before,.moveStick::after{content:"";position:absolute;background:#ffffff24;pointer-events:none}.moveStick::before{left:50%;top:12px;bottom:12px;width:1px}.moveStick::after{top:50%;left:12px;right:12px;height:1px}
+.moveKnob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin-left:-23px;margin-top:-23px;border-radius:50%;background:#e7ebf0d9;border:1px solid #fff;box-shadow:0 3px 10px #0008;transform:translate(0,0);pointer-events:none}
+.verticalMove{display:flex;flex-direction:column;gap:10px;pointer-events:auto}.mobileMoveButton{width:58px;height:50px;border-radius:14px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:15px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.mobileMoveButton.active{background:#3f4855e8}
 @media(max-width:700px){
   #ui{top:8px;left:8px;width:calc(100vw - 16px);padding:10px;border-radius:9px}
   #ui.collapsed{top:8px;left:8px;width:auto;max-width:calc(100vw - 16px);padding:7px 9px}
   .title{font-size:15px}.label{margin-top:6px}.row{gap:6px;margin-top:6px}
   button,label.ctrl,.exposure{padding:6px 8px;font-size:12px}.small{font-size:11px}
+}
+@media(max-width:700px),(pointer:coarse){
+  #mobileControls.ready{display:flex}
 }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@sparkjsdev/spark":"https://sparkjs.dev/releases/spark/2.4.0/spark.module.js"}}</script>
@@ -41,11 +49,20 @@ button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45
       <div class="exposure"><span>明るさ</span><input id="exposure" type="range" min="0.55" max="1.60" step="0.05" value="0.90"><span id="exposureValue" class="value">0.90</span></div>
     </div>
     <div class="row"><select id="anim" disabled><option>アニメーションなし</option></select><button id="play" disabled>一時停止</button><button id="stop" disabled>停止</button></div>
-    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。キーボード: W/A/S/D=前後左右、Q/E=上下、Shift=高速。マス目とカメラは固定です。3DGS PLYは自動判定します。</div>
+    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。キーボード: W/A/S/D=前後左右、Q/E=上下、Shift=高速。スマホ: 左下スティック=前後左右、右下=上下。マス目とカメラは固定です。3DGS PLYは自動判定します。</div>
     <div id="loadProgress" class="loadProgress" hidden>
       <div id="loadProgressText" class="loadProgressText"></div>
       <div class="loadProgressTrack"><div id="loadProgressBar" class="loadProgressBar"></div></div>
     </div>
+  </div>
+</div>
+<div id="mobileControls" aria-label="スマホ移動操作">
+  <div id="moveStick" class="moveStick" aria-label="前後左右移動">
+    <div id="moveKnob" class="moveKnob"></div>
+  </div>
+  <div class="verticalMove">
+    <button id="moveUp" class="mobileMoveButton" type="button">上</button>
+    <button id="moveDown" class="mobileMoveButton" type="button">下</button>
   </div>
 </div>
 <script type="module">
@@ -61,7 +78,7 @@ import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
 const $=id=>document.getElementById(id);
-const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue'),loadProgress=$('loadProgress'),loadProgressText=$('loadProgressText'),loadProgressBar=$('loadProgressBar');
+const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue'),loadProgress=$('loadProgress'),loadProgressText=$('loadProgressText'),loadProgressBar=$('loadProgressBar'),mobileControls=$('mobileControls'),moveStick=$('moveStick'),moveKnob=$('moveKnob'),moveUp=$('moveUp'),moveDown=$('moveDown');
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x272a2f);
@@ -111,6 +128,7 @@ let sparkRenderer=null,sparkModulePromise=null,isGaussianSplat=false,isLoading=f
 let modelRadius=1,modelHalfHeight=0.5,objectScale=1;
 const panOffset=new THREE.Vector3();
 const pressedKeys=new Set();
+let mobileMoveX=0,mobileMoveForward=0,mobileMoveVertical=0,mobileStickPointerId=null;
 const homeQuaternion=new THREE.Quaternion();
 let homeCameraPosition=new THREE.Vector3(3,0.3,4),homeCameraTarget=new THREE.Vector3(0,0.5,0);
 
@@ -125,6 +143,12 @@ function managerFor(m){const mgr=new THREE.LoadingManager();mgr.addHandler(/\.tg
 
 function setUICollapsed(collapsed){ui.classList.toggle('collapsed',collapsed);uiToggle.textContent=collapsed?'設定':'隠す';uiToggle.setAttribute('aria-expanded',String(!collapsed))}
 uiToggle.addEventListener('click',()=>setUICollapsed(!ui.classList.contains('collapsed')));
+function updateMobileControls(){mobileControls.classList.toggle('ready',Boolean(model))}
+function resetMobileMovement(){
+  mobileMoveX=0;mobileMoveForward=0;mobileMoveVertical=0;mobileStickPointerId=null;
+  moveKnob.style.transform='translate(0px,0px)';
+  moveUp.classList.remove('active');moveDown.classList.remove('active');
+}
 
 function formatBytes(bytes){
   if(!Number.isFinite(bytes)||bytes<=0)return '0 B';
@@ -204,7 +228,7 @@ function clean(){
     else disposeObject(model);
     model=null;
   }
-  isGaussianSplat=false;updateRendererQuality();
+  isGaussianSplat=false;updateRendererQuality();resetMobileMovement();updateMobileControls();
   contentRoot.position.set(0,0,0);objectRoot.position.set(0,0,0);objectRoot.quaternion.identity();objectRoot.scale.setScalar(1);objectScale=1;panOffset.set(0,0,0);urls.forEach(URL.revokeObjectURL);urls=[];
 }
 function disposeObject(root){root.traverse(o=>{if(o.geometry)o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];for(const m of mats){if(!m)continue;for(const key of Object.keys(m)){const v=m[key];if(v&&v.isTexture)v.dispose()}m.dispose()}})}
@@ -331,6 +355,7 @@ async function load(files){
 
     model=r.object;
     contentRoot.add(model);
+    updateMobileControls();
     prep(model,e);
     frameModel();
     setupAnim(model,r.animations);
@@ -378,16 +403,18 @@ function isTextInputFocused(){
   const el=document.activeElement;
   return el&&(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(el.tagName)||el.isContentEditable);
 }
-function keyboardMove(delta){
-  if(!model||isTextInputFocused())return;
+function applyMovement(delta){
+  if(!model)return;
 
-  let forward=0,right=0,up=0;
-  if(pressedKeys.has('KeyW')||pressedKeys.has('ArrowUp'))forward+=1;
-  if(pressedKeys.has('KeyS')||pressedKeys.has('ArrowDown'))forward-=1;
-  if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))right+=1;
-  if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))right-=1;
-  if(pressedKeys.has('KeyE'))up+=1;
-  if(pressedKeys.has('KeyQ'))up-=1;
+  let forward=mobileMoveForward,right=mobileMoveX,up=mobileMoveVertical;
+  if(!isTextInputFocused()){
+    if(pressedKeys.has('KeyW')||pressedKeys.has('ArrowUp'))forward-=1;
+    if(pressedKeys.has('KeyS')||pressedKeys.has('ArrowDown'))forward+=1;
+    if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))right+=1;
+    if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))right-=1;
+    if(pressedKeys.has('KeyE'))up+=1;
+    if(pressedKeys.has('KeyQ'))up-=1;
+  }
   if(forward===0&&right===0&&up===0)return;
 
   const cameraForward=new THREE.Vector3();
@@ -416,7 +443,62 @@ addEventListener('keydown',e=>{
   if(e.code.startsWith('Arrow'))e.preventDefault();
 });
 addEventListener('keyup',e=>pressedKeys.delete(e.code));
-addEventListener('blur',()=>pressedKeys.clear());
+addEventListener('blur',()=>{pressedKeys.clear();resetMobileMovement()});
+
+function updateMobileStick(e){
+  const rect=moveStick.getBoundingClientRect();
+  let x=(e.clientX-(rect.left+rect.width*0.5))/(rect.width*0.5);
+  let y=(e.clientY-(rect.top+rect.height*0.5))/(rect.height*0.5);
+  const length=Math.hypot(x,y);
+  if(length>1){x/=length;y/=length}
+  mobileMoveX=x;
+  mobileMoveForward=y;
+  const knobRange=rect.width*0.28;
+  moveKnob.style.transform=`translate(${(x*knobRange).toFixed(1)}px,${(y*knobRange).toFixed(1)}px)`;
+}
+function endMobileStick(e){
+  if(mobileStickPointerId!==e.pointerId)return;
+  try{moveStick.releasePointerCapture(e.pointerId)}catch{}
+  mobileStickPointerId=null;
+  mobileMoveX=0;mobileMoveForward=0;
+  moveKnob.style.transform='translate(0px,0px)';
+}
+moveStick.addEventListener('pointerdown',e=>{
+  e.preventDefault();e.stopPropagation();
+  mobileStickPointerId=e.pointerId;
+  moveStick.setPointerCapture(e.pointerId);
+  updateMobileStick(e);
+});
+moveStick.addEventListener('pointermove',e=>{
+  if(mobileStickPointerId!==e.pointerId)return;
+  e.preventDefault();e.stopPropagation();updateMobileStick(e);
+});
+moveStick.addEventListener('pointerup',endMobileStick);
+moveStick.addEventListener('pointercancel',endMobileStick);
+
+function bindVerticalButton(button,value){
+  let pointerId=null;
+  const start=e=>{
+    e.preventDefault();e.stopPropagation();
+    pointerId=e.pointerId;
+    button.setPointerCapture(e.pointerId);
+    mobileMoveVertical=value;
+    button.classList.add('active');
+  };
+  const end=e=>{
+    if(pointerId!==e.pointerId)return;
+    try{button.releasePointerCapture(e.pointerId)}catch{}
+    pointerId=null;
+    mobileMoveVertical=0;
+    button.classList.remove('active');
+    button.blur();
+  };
+  button.addEventListener('pointerdown',start);
+  button.addEventListener('pointerup',end);
+  button.addEventListener('pointercancel',end);
+}
+bindVerticalButton(moveUp,1);
+bindVerticalButton(moveDown,-1);
 
 const pointers=new Map();
 let lastSingle=null,lastTouchMid=null,lastTouchDistance=null,mouseMode=null;
@@ -473,7 +555,7 @@ stop.addEventListener('click',()=>{if(mixer)mixer.stopAllAction();action=null;pl
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);updateRendererQuality();if(model){camera.lookAt(homeCameraTarget)}});
 
-(function loop(){requestAnimationFrame(loop);const d=Math.min(clock.getDelta(),0.05);if(mixer)mixer.update(d);keyboardMove(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,d*0.65);objectRoot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
+(function loop(){requestAnimationFrame(loop);const d=Math.min(clock.getDelta(),0.05);if(mixer)mixer.update(d);applyMovement(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,d*0.65);objectRoot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
 </script>
 </body>
 </html>
