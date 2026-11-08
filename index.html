@@ -13,12 +13,12 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#272a2f;col
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
 input[type=file],select{width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #555;border-radius:7px;padding:7px}
 button,label.ctrl,.exposure{background:#252525;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 9px;font-size:13px}
-button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.5;margin-top:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}.exposure{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}.exposure input{flex:1}.value{display:inline-block;min-width:34px;text-align:right}.loadProgress{margin-top:8px}.loadProgressText{font-size:11px;color:#c7cbd1;margin-bottom:4px}.loadProgressTrack{height:5px;border-radius:999px;background:#30343a;overflow:hidden}.loadProgressBar{width:0;height:100%;background:#9aa4b2;transition:width .08s linear}
+button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45}.small{font-size:12px;color:#bbb;line-height:1.5;margin-top:8px}.label{font-size:12px;color:#bbb;margin:8px 0 4px}.exposure{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}.exposure input{flex:1}.value{display:inline-block;min-width:34px;text-align:right}.loadProgress{margin-top:8px}.loadProgressText{font-size:11px;color:#c7cbd1;margin-bottom:4px}.loadProgressTrack{height:5px;border-radius:999px;background:#30343a;overflow:hidden}.loadProgressBar{width:0;height:100%;background:#9aa4b2;transition:width .08s linear}.compactValue{min-width:46px;text-align:center;font-variant-numeric:tabular-nums}
 #mobileControls{display:none;position:fixed;z-index:12;left:16px;right:16px;bottom:max(18px,env(safe-area-inset-bottom));align-items:flex-end;justify-content:space-between;pointer-events:none}
 .moveStick{position:relative;width:112px;height:112px;border-radius:50%;background:#141414b8;border:1px solid #ffffff42;box-shadow:0 6px 18px #0008;touch-action:none;pointer-events:auto;user-select:none;-webkit-user-select:none}
 .moveStick::before,.moveStick::after{content:"";position:absolute;background:#ffffff24;pointer-events:none}.moveStick::before{left:50%;top:12px;bottom:12px;width:1px}.moveStick::after{top:50%;left:12px;right:12px;height:1px}
 .moveKnob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin-left:-23px;margin-top:-23px;border-radius:50%;background:#e7ebf0d9;border:1px solid #fff;box-shadow:0 3px 10px #0008;transform:translate(0,0);pointer-events:none}
-.verticalMove{display:flex;flex-direction:column;gap:10px;pointer-events:auto}.mobileMoveButton{width:58px;height:50px;border-radius:14px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:15px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.mobileMoveButton.active{background:#3f4855e8}
+.mobileRightPanel{display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}.mobileQuickRow{display:flex;align-items:center;gap:6px;pointer-events:auto;background:#141414b8;border:1px solid #ffffff42;border-radius:12px;padding:5px 6px}.mobileQuickLabel{min-width:42px;text-align:center;font-size:11px;color:#eee;font-variant-numeric:tabular-nums}.mobileQuickButton{width:40px;height:36px;border-radius:10px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:17px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.verticalMove{display:flex;flex-direction:column;gap:10px;pointer-events:auto}.mobileMoveButton{width:58px;height:50px;border-radius:14px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:15px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.mobileMoveButton.active{background:#3f4855e8}
 @media(max-width:700px){
   #ui{top:8px;left:8px;width:calc(100vw - 16px);padding:10px;border-radius:9px}
   #ui.collapsed{top:8px;left:8px;width:auto;max-width:calc(100vw - 16px);padding:7px 9px}
@@ -49,7 +49,15 @@ button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45
       <div class="exposure"><span>明るさ</span><input id="exposure" type="range" min="0.55" max="1.60" step="0.05" value="0.90"><span id="exposureValue" class="value">0.90</span></div>
     </div>
     <div class="row"><select id="anim" disabled><option>アニメーションなし</option></select><button id="play" disabled>一時停止</button><button id="stop" disabled>停止</button></div>
-    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。キーボード: W/A/S/D=前後左右、Q/E=上下、Shift=高速。スマホ: 左下スティック=前後左右、右下=上下。マス目とカメラは固定です。3DGS PLYは自動判定します。</div>
+    <div class="row">
+      <button id="tiltDown" type="button">視点▼</button>
+      <span id="tiltValue" class="compactValue">0°</span>
+      <button id="tiltUp" type="button">視点▲</button>
+      <button id="speedDown" type="button">速度−</button>
+      <span id="speedValue" class="compactValue">1.0x</span>
+      <button id="speedUp" type="button">速度＋</button>
+    </div>
+    <div id="info" class="small">1本指/左ドラッグ: モデル回転　2本指ドラッグ/右ドラッグ: モデル移動　ピンチ/ホイール: モデル拡縮。キーボード: W/A/S/D=前後左右、Q/E=上下、Shift=高速。スマホ: 左下スティック=前後左右、右下=上下。視点▲/▼=カメラ傾き、速度−/＋=移動速度。3DGS PLYは自動判定します。</div>
     <div id="loadProgress" class="loadProgress" hidden>
       <div id="loadProgressText" class="loadProgressText"></div>
       <div class="loadProgressTrack"><div id="loadProgressBar" class="loadProgressBar"></div></div>
@@ -60,9 +68,21 @@ button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45
   <div id="moveStick" class="moveStick" aria-label="前後左右移動">
     <div id="moveKnob" class="moveKnob"></div>
   </div>
-  <div class="verticalMove">
-    <button id="moveUp" class="mobileMoveButton" type="button">上</button>
-    <button id="moveDown" class="mobileMoveButton" type="button">下</button>
+  <div class="mobileRightPanel">
+    <div class="mobileQuickRow">
+      <button id="mobileTiltDown" class="mobileQuickButton" type="button" aria-label="カメラを下へ傾ける">▼</button>
+      <span id="mobileTiltValue" class="mobileQuickLabel">0°</span>
+      <button id="mobileTiltUp" class="mobileQuickButton" type="button" aria-label="カメラを上へ傾ける">▲</button>
+    </div>
+    <div class="mobileQuickRow">
+      <button id="mobileSpeedDown" class="mobileQuickButton" type="button" aria-label="移動速度を下げる">−</button>
+      <span id="mobileSpeedValue" class="mobileQuickLabel">1.0x</span>
+      <button id="mobileSpeedUp" class="mobileQuickButton" type="button" aria-label="移動速度を上げる">＋</button>
+    </div>
+    <div class="verticalMove">
+      <button id="moveUp" class="mobileMoveButton" type="button">上</button>
+      <button id="moveDown" class="mobileMoveButton" type="button">下</button>
+    </div>
   </div>
 </div>
 <script type="module">
@@ -78,7 +98,7 @@ import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
 const $=id=>document.getElementById(id);
-const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue'),loadProgress=$('loadProgress'),loadProgressText=$('loadProgressText'),loadProgressBar=$('loadProgressBar'),mobileControls=$('mobileControls'),moveStick=$('moveStick'),moveKnob=$('moveKnob'),moveUp=$('moveUp'),moveDown=$('moveDown');
+const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue'),loadProgress=$('loadProgress'),loadProgressText=$('loadProgressText'),loadProgressBar=$('loadProgressBar'),mobileControls=$('mobileControls'),moveStick=$('moveStick'),moveKnob=$('moveKnob'),moveUp=$('moveUp'),moveDown=$('moveDown'),tiltDown=$('tiltDown'),tiltUp=$('tiltUp'),tiltValue=$('tiltValue'),speedDown=$('speedDown'),speedUp=$('speedUp'),speedValue=$('speedValue'),mobileTiltDown=$('mobileTiltDown'),mobileTiltUp=$('mobileTiltUp'),mobileTiltValue=$('mobileTiltValue'),mobileSpeedDown=$('mobileSpeedDown'),mobileSpeedUp=$('mobileSpeedUp'),mobileSpeedValue=$('mobileSpeedValue');
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x272a2f);
@@ -129,6 +149,7 @@ let modelRadius=1,modelHalfHeight=0.5,objectScale=1;
 const panOffset=new THREE.Vector3();
 const pressedKeys=new Set();
 let mobileMoveRight=0,mobileMoveForward=0,mobileMoveVertical=0,mobileStickPointerId=null;
+let cameraPitchOffset=0,moveSpeedMultiplier=1;
 const homeQuaternion=new THREE.Quaternion();
 let homeCameraPosition=new THREE.Vector3(3,0.3,4),homeCameraTarget=new THREE.Vector3(0,0.5,0);
 
@@ -148,6 +169,40 @@ function resetMobileMovement(){
   mobileMoveRight=0;mobileMoveForward=0;mobileMoveVertical=0;mobileStickPointerId=null;
   moveKnob.style.transform='translate(0px,0px)';
   moveUp.classList.remove('active');moveDown.classList.remove('active');
+}
+function updateViewControlLabels(){
+  const deg=Math.round(THREE.MathUtils.radToDeg(cameraPitchOffset));
+  tiltValue.textContent=deg+'°';mobileTiltValue.textContent=deg+'°';
+  const speedText=moveSpeedMultiplier.toFixed(1)+'x';
+  speedValue.textContent=speedText;mobileSpeedValue.textContent=speedText;
+}
+function applyCameraTilt(){
+  if(!model)return;
+  const baseForward=homeCameraTarget.clone().sub(homeCameraPosition).normalize();
+  let right=new THREE.Vector3().crossVectors(baseForward,Y_AXIS);
+  if(right.lengthSq()<1e-8)right.set(1,0,0);else right.normalize();
+  const tiltedForward=baseForward.clone().applyAxisAngle(right,cameraPitchOffset).normalize();
+  camera.position.copy(homeCameraPosition);
+  camera.up.set(0,1,0);
+  camera.lookAt(camera.position.clone().add(tiltedForward));
+  camera.updateProjectionMatrix();
+  updateViewControlLabels();
+}
+function adjustCameraTilt(deltaDegrees){
+  cameraPitchOffset=THREE.MathUtils.clamp(
+    cameraPitchOffset+THREE.MathUtils.degToRad(deltaDegrees),
+    THREE.MathUtils.degToRad(-60),
+    THREE.MathUtils.degToRad(60)
+  );
+  applyCameraTilt();
+}
+function adjustMoveSpeed(delta){
+  moveSpeedMultiplier=THREE.MathUtils.clamp(
+    Math.round((moveSpeedMultiplier+delta)*10)/10,
+    0.5,
+    4.0
+  );
+  updateViewControlLabels();
 }
 
 function formatBytes(bytes){
@@ -300,7 +355,9 @@ function frameModel(){
 
   homeCameraPosition.copy(camera.position);
   homeCameraTarget.copy(target);
+  cameraPitchOffset=0;
   homeQuaternion.copy(objectRoot.quaternion);
+  updateViewControlLabels();
 
   grid.position.set(0,0,0);
   grid.rotation.set(0,0,0);
@@ -313,7 +370,8 @@ function frameModel(){
 function resetView(){
   if(!model)return;
   objectScale=1;panOffset.set(0,0,0);objectRoot.quaternion.copy(homeQuaternion);updateObjectTransform();
-  camera.position.copy(homeCameraPosition);camera.lookAt(homeCameraTarget);camera.updateProjectionMatrix();
+  cameraPitchOffset=0;
+  applyCameraTilt();
 }
 
 function setupAnim(root,a){clips=(a||[]).filter(c=>c?.tracks?.length);if(!clips.length){resetAnimationUI();return}mixer=new THREE.AnimationMixer(root);anim.innerHTML='';clips.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name?.trim()||`Animation ${i+1}`;anim.appendChild(o)});anim.disabled=play.disabled=stop.disabled=false;anim.value='0';playClip(0)}
@@ -441,7 +499,7 @@ function applyMovement(delta){
   if(move.lengthSq()>1)move.normalize();
 
   const fast=pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight');
-  const speed=Math.max(modelRadius,0.1)*(fast?6.0:2.4);
+  const speed=Math.max(modelRadius,0.1)*2.4*moveSpeedMultiplier*(fast?2.5:1);
   panOffset.addScaledVector(move,speed*delta);
   updateObjectTransform();
 }
@@ -511,6 +569,19 @@ function bindVerticalButton(button,value){
 bindVerticalButton(moveUp,-1);
 bindVerticalButton(moveDown,1);
 
+function bindViewButton(button,handler){
+  button.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();handler();button.blur()});
+}
+bindViewButton(tiltDown,()=>adjustCameraTilt(-5));
+bindViewButton(tiltUp,()=>adjustCameraTilt(5));
+bindViewButton(speedDown,()=>adjustMoveSpeed(-0.5));
+bindViewButton(speedUp,()=>adjustMoveSpeed(0.5));
+bindViewButton(mobileTiltDown,()=>adjustCameraTilt(-5));
+bindViewButton(mobileTiltUp,()=>adjustCameraTilt(5));
+bindViewButton(mobileSpeedDown,()=>adjustMoveSpeed(-0.5));
+bindViewButton(mobileSpeedUp,()=>adjustMoveSpeed(0.5));
+updateViewControlLabels();
+
 const pointers=new Map();
 let lastSingle=null,lastTouchMid=null,lastTouchDistance=null,mouseMode=null;
 const point=e=>new THREE.Vector2(e.clientX,e.clientY);
@@ -564,7 +635,7 @@ anim.addEventListener('change',()=>playClip(Number(anim.value)));
 play.addEventListener('click',()=>{if(!action)return;playing=!playing;action.paused=!playing;play.textContent=playing?'一時停止':'再生'});
 stop.addEventListener('click',()=>{if(mixer)mixer.stopAllAction();action=null;playing=false;play.textContent='再生'});
 
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);updateRendererQuality();if(model){camera.lookAt(homeCameraTarget)}});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);updateRendererQuality();if(model)applyCameraTilt()});
 
 (function loop(){requestAnimationFrame(loop);const d=Math.min(clock.getDelta(),0.05);if(mixer)mixer.update(d);applyMovement(d);if(model&&autoRotate.checked){const q=new THREE.Quaternion().setFromAxisAngle(Y_AXIS,d*0.65);objectRoot.quaternion.premultiply(q).normalize()}renderer.render(scene,camera)})();
 </script>
