@@ -406,50 +406,36 @@ function isTextInputFocused(){
 function applyMovement(delta){
   if(!model)return;
 
-  let keyboardForward=0,keyboardRight=0,keyboardUp=0;
+  // One shared logical movement input for keyboard and joystick.
+  // W / joystick-up = forward -1
+  // S / joystick-down = forward +1
+  // A / joystick-left = right -1
+  // D / joystick-right = right +1
+  let forward=mobileMoveForward,right=mobileMoveRight,up=mobileMoveVertical;
   if(!isTextInputFocused()){
-    if(pressedKeys.has('KeyW')||pressedKeys.has('ArrowUp'))keyboardForward-=1;
-    if(pressedKeys.has('KeyS')||pressedKeys.has('ArrowDown'))keyboardForward+=1;
-    if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))keyboardRight+=1;
-    if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))keyboardRight-=1;
-    if(pressedKeys.has('KeyE'))keyboardUp+=1;
-    if(pressedKeys.has('KeyQ'))keyboardUp-=1;
+    if(pressedKeys.has('KeyW')||pressedKeys.has('ArrowUp'))forward-=1;
+    if(pressedKeys.has('KeyS')||pressedKeys.has('ArrowDown'))forward+=1;
+    if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))right+=1;
+    if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))right-=1;
+    if(pressedKeys.has('KeyE'))up+=1;
+    if(pressedKeys.has('KeyQ'))up-=1;
   }
 
-  // Keyboard keeps its existing ground-plane behavior.
-  const keyboardForwardVector=new THREE.Vector3();
-  camera.getWorldDirection(keyboardForwardVector);
-  keyboardForwardVector.y=0;
-  if(keyboardForwardVector.lengthSq()<1e-8)keyboardForwardVector.set(0,0,-1);
-  else keyboardForwardVector.normalize();
+  const forwardVector=new THREE.Vector3();
+  camera.getWorldDirection(forwardVector);
+  forwardVector.y=0;
+  if(forwardVector.lengthSq()<1e-8)forwardVector.set(0,0,-1);
+  else forwardVector.normalize();
 
-  const keyboardRightVector=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
-  keyboardRightVector.y=0;
-  if(keyboardRightVector.lengthSq()<1e-8)keyboardRightVector.set(1,0,0);
-  else keyboardRightVector.normalize();
-
-  // Mobile stick uses the camera's actual 3D viewing basis.
-  const mobileForwardVector=new THREE.Vector3();
-  camera.getWorldDirection(mobileForwardVector);
-  if(mobileForwardVector.lengthSq()<1e-8)mobileForwardVector.set(0,0,-1);
-  else mobileForwardVector.normalize();
-
-  const mobileRightVector=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
-  if(mobileRightVector.lengthSq()<1e-8)mobileRightVector.set(1,0,0);
-  else mobileRightVector.normalize();
+  const rightVector=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  rightVector.y=0;
+  if(rightVector.lengthSq()<1e-8)rightVector.set(1,0,0);
+  else rightVector.normalize();
 
   const move=new THREE.Vector3();
-
-  // Keyboard behavior is unchanged.
-  move.addScaledVector(keyboardForwardVector,keyboardForward);
-  move.addScaledVector(keyboardRightVector,keyboardRight);
-  move.y+=keyboardUp;
-
-  // Joystick up/down follows the camera's true viewing direction, including pitch.
-  // Joystick left/right follows the camera's true local right direction.
-  move.addScaledVector(mobileForwardVector,mobileMoveForward);
-  move.addScaledVector(mobileRightVector,mobileMoveRight);
-  move.y+=mobileMoveVertical;
+  move.addScaledVector(forwardVector,forward);
+  move.addScaledVector(rightVector,right);
+  move.y+=up;
 
   if(move.lengthSq()===0)return;
   if(move.lengthSq()>1)move.normalize();
@@ -475,9 +461,9 @@ function updateMobileStick(e){
   let y=(e.clientY-(rect.top+rect.height*0.5))/(rect.height*0.5);
   const length=Math.hypot(x,y);
   if(length>1){x/=length;y/=length}
-  // Logical joystick input only: right = +Right, up = +Forward.
+  // Match keyboard exactly: right=D, left=A, up=W, down=S.
   mobileMoveRight=x;
-  mobileMoveForward=-y;
+  mobileMoveForward=y;
   const knobRange=rect.width*0.28;
   moveKnob.style.transform=`translate(${(x*knobRange).toFixed(1)}px,${(y*knobRange).toFixed(1)}px)`;
 }
