@@ -406,16 +406,15 @@ function isTextInputFocused(){
 function applyMovement(delta){
   if(!model)return;
 
-  let forward=mobileMoveForward,right=mobileMoveX,up=mobileMoveVertical;
+  let keyboardForward=0,keyboardRight=0,keyboardUp=0;
   if(!isTextInputFocused()){
-    if(pressedKeys.has('KeyW')||pressedKeys.has('ArrowUp'))forward-=1;
-    if(pressedKeys.has('KeyS')||pressedKeys.has('ArrowDown'))forward+=1;
-    if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))right+=1;
-    if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))right-=1;
-    if(pressedKeys.has('KeyE'))up+=1;
-    if(pressedKeys.has('KeyQ'))up-=1;
+    if(pressedKeys.has('KeyW')||pressedKeys.has('ArrowUp'))keyboardForward-=1;
+    if(pressedKeys.has('KeyS')||pressedKeys.has('ArrowDown'))keyboardForward+=1;
+    if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))keyboardRight+=1;
+    if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))keyboardRight-=1;
+    if(pressedKeys.has('KeyE'))keyboardUp+=1;
+    if(pressedKeys.has('KeyQ'))keyboardUp-=1;
   }
-  if(forward===0&&right===0&&up===0)return;
 
   const cameraForward=new THREE.Vector3();
   camera.getWorldDirection(cameraForward);
@@ -425,13 +424,22 @@ function applyMovement(delta){
 
   const cameraRight=new THREE.Vector3().crossVectors(cameraForward,Y_AXIS).normalize();
   const move=new THREE.Vector3();
-  move.addScaledVector(cameraForward,forward);
-  move.addScaledVector(cameraRight,right);
-  move.y+=up;
+
+  // Keyboard keeps the established project direction.
+  move.addScaledVector(cameraForward,keyboardForward);
+  move.addScaledVector(cameraRight,keyboardRight);
+  move.y+=keyboardUp;
+
+  // Mobile stick is camera-relative: stick up always moves toward camera forward.
+  move.addScaledVector(cameraForward,mobileMoveForward);
+  move.addScaledVector(cameraRight,mobileMoveX);
+  move.y+=mobileMoveVertical;
+
+  if(move.lengthSq()===0)return;
   if(move.lengthSq()>1)move.normalize();
 
   const fast=pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight');
-  const speed=Math.max(modelRadius,0.1)*(fast?2.4:0.8);
+  const speed=Math.max(modelRadius,0.1)*(fast?6.0:2.4);
   panOffset.addScaledVector(move,speed*delta);
   updateObjectTransform();
 }
@@ -452,7 +460,7 @@ function updateMobileStick(e){
   const length=Math.hypot(x,y);
   if(length>1){x/=length;y/=length}
   mobileMoveX=x;
-  mobileMoveForward=y;
+  mobileMoveForward=-y;
   const knobRange=rect.width*0.28;
   moveKnob.style.transform=`translate(${(x*knobRange).toFixed(1)}px,${(y*knobRange).toFixed(1)}px)`;
 }
@@ -497,8 +505,8 @@ function bindVerticalButton(button,value){
   button.addEventListener('pointerup',end);
   button.addEventListener('pointercancel',end);
 }
-bindVerticalButton(moveUp,1);
-bindVerticalButton(moveDown,-1);
+bindVerticalButton(moveUp,-1);
+bindVerticalButton(moveDown,1);
 
 const pointers=new Map();
 let lastSingle=null,lastTouchMid=null,lastTouchDistance=null,mouseMode=null;
