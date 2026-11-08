@@ -18,7 +18,7 @@ button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45
 .moveStick{position:relative;width:112px;height:112px;border-radius:50%;background:#141414b8;border:1px solid #ffffff42;box-shadow:0 6px 18px #0008;touch-action:none;pointer-events:auto;user-select:none;-webkit-user-select:none}
 .moveStick::before,.moveStick::after{content:"";position:absolute;background:#ffffff24;pointer-events:none}.moveStick::before{left:50%;top:12px;bottom:12px;width:1px}.moveStick::after{top:50%;left:12px;right:12px;height:1px}
 .moveKnob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin-left:-23px;margin-top:-23px;border-radius:50%;background:#e7ebf0d9;border:1px solid #fff;box-shadow:0 3px 10px #0008;transform:translate(0,0);pointer-events:none}
-.mobileRightPanel{display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}.mobileQuickRow{display:flex;align-items:center;gap:6px;pointer-events:auto;background:#141414b8;border:1px solid #ffffff42;border-radius:12px;padding:5px 6px}.mobileQuickLabel{min-width:42px;text-align:center;font-size:11px;color:#eee;font-variant-numeric:tabular-nums}.mobileQuickButton{width:40px;height:36px;border-radius:10px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:17px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.verticalMove{display:flex;flex-direction:column;gap:10px;pointer-events:auto}.mobileMoveButton{width:58px;height:50px;border-radius:14px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:15px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.mobileMoveButton.active{background:#3f4855e8}
+.mobileRightPanel{display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}.mobileQuickRow{display:flex;align-items:center;gap:6px;pointer-events:auto;background:#141414b8;border:1px solid #ffffff42;border-radius:12px;padding:5px 6px}.mobileQuickLabel{min-width:42px;text-align:center;font-size:11px;color:#eee;font-variant-numeric:tabular-nums}.mobileQuickButton{width:40px;height:36px;border-radius:10px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:17px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.mobileSpeedVolume{width:72px;height:238px;box-sizing:border-box;padding:10px 10px 12px;border-radius:28px;background:#d9edf2e8;border:1px solid #ffffffaa;box-shadow:0 8px 22px #0007;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}.mobileSpeedTitle{font-size:11px;font-weight:700;color:#183842;line-height:1}.mobileSpeedValue{font-size:12px;font-weight:800;color:#183842;font-variant-numeric:tabular-nums}.mobileSpeedTrack{position:relative;width:28px;height:176px;border-radius:16px;background:#f5f8f9;box-shadow:inset 0 0 0 1px #9fc2cb;overflow:visible;touch-action:none}.mobileSpeedFill{position:absolute;left:0;right:0;bottom:0;height:14.3%;border-radius:16px;background:#25798a}.mobileSpeedThumb{position:absolute;left:50%;top:85.7%;width:34px;height:12px;border-radius:999px;background:#0f6b80;transform:translate(-50%,-50%);box-shadow:0 1px 4px #0005;pointer-events:none}.verticalMove{display:flex;flex-direction:column;gap:10px;pointer-events:auto}.mobileMoveButton{width:58px;height:50px;border-radius:14px;background:#141414c9;border:1px solid #ffffff55;color:#fff;font-size:15px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}.mobileMoveButton.active{background:#3f4855e8}
 @media(max-width:700px){
   #ui{top:8px;left:8px;width:calc(100vw - 16px);padding:10px;border-radius:9px}
   #ui.collapsed{top:8px;left:8px;width:auto;max-width:calc(100vw - 16px);padding:7px 9px}
@@ -74,10 +74,13 @@ button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.45
       <span id="mobileTiltValue" class="mobileQuickLabel">0°</span>
       <button id="mobileTiltUp" class="mobileQuickButton" type="button" aria-label="カメラを上へ傾ける">▲</button>
     </div>
-    <div class="mobileQuickRow">
-      <button id="mobileSpeedDown" class="mobileQuickButton" type="button" aria-label="移動速度を下げる">−</button>
-      <span id="mobileSpeedValue" class="mobileQuickLabel">1.0x</span>
-      <button id="mobileSpeedUp" class="mobileQuickButton" type="button" aria-label="移動速度を上げる">＋</button>
+    <div id="mobileSpeedVolume" class="mobileSpeedVolume" aria-label="移動速度">
+      <div class="mobileSpeedTitle">速度</div>
+      <div id="mobileSpeedValue" class="mobileSpeedValue">1.0x</div>
+      <div id="mobileSpeedTrack" class="mobileSpeedTrack" role="slider" aria-valuemin="0.5" aria-valuemax="4.0" aria-valuenow="1.0" aria-label="移動速度">
+        <div id="mobileSpeedFill" class="mobileSpeedFill"></div>
+        <div id="mobileSpeedThumb" class="mobileSpeedThumb"></div>
+      </div>
     </div>
     <div class="verticalMove">
       <button id="moveUp" class="mobileMoveButton" type="button">上</button>
@@ -98,7 +101,7 @@ import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
 const $=id=>document.getElementById(id);
-const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue'),loadProgress=$('loadProgress'),loadProgressText=$('loadProgressText'),loadProgressBar=$('loadProgressBar'),mobileControls=$('mobileControls'),moveStick=$('moveStick'),moveKnob=$('moveKnob'),moveUp=$('moveUp'),moveDown=$('moveDown'),tiltDown=$('tiltDown'),tiltUp=$('tiltUp'),tiltValue=$('tiltValue'),speedDown=$('speedDown'),speedUp=$('speedUp'),speedValue=$('speedValue'),mobileTiltDown=$('mobileTiltDown'),mobileTiltUp=$('mobileTiltUp'),mobileTiltValue=$('mobileTiltValue'),mobileSpeedDown=$('mobileSpeedDown'),mobileSpeedUp=$('mobileSpeedUp'),mobileSpeedValue=$('mobileSpeedValue');
+const canvas=$('view'),ui=$('ui'),uiToggle=$('uiToggle'),fileInput=$('files'),folderInput=$('folder'),autoRotate=$('rotate'),anim=$('anim'),play=$('play'),stop=$('stop'),info=$('info'),exposure=$('exposure'),exposureValue=$('exposureValue'),loadProgress=$('loadProgress'),loadProgressText=$('loadProgressText'),loadProgressBar=$('loadProgressBar'),mobileControls=$('mobileControls'),moveStick=$('moveStick'),moveKnob=$('moveKnob'),moveUp=$('moveUp'),moveDown=$('moveDown'),tiltDown=$('tiltDown'),tiltUp=$('tiltUp'),tiltValue=$('tiltValue'),speedDown=$('speedDown'),speedUp=$('speedUp'),speedValue=$('speedValue'),mobileTiltDown=$('mobileTiltDown'),mobileTiltUp=$('mobileTiltUp'),mobileTiltValue=$('mobileTiltValue'),mobileSpeedVolume=$('mobileSpeedVolume'),mobileSpeedValue=$('mobileSpeedValue'),mobileSpeedTrack=$('mobileSpeedTrack'),mobileSpeedFill=$('mobileSpeedFill'),mobileSpeedThumb=$('mobileSpeedThumb');
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x272a2f);
@@ -175,6 +178,10 @@ function updateViewControlLabels(){
   tiltValue.textContent=deg+'°';mobileTiltValue.textContent=deg+'°';
   const speedText=moveSpeedMultiplier.toFixed(1)+'x';
   speedValue.textContent=speedText;mobileSpeedValue.textContent=speedText;
+  const ratio=THREE.MathUtils.clamp((moveSpeedMultiplier-0.5)/(4.0-0.5),0,1);
+  mobileSpeedFill.style.height=(ratio*100).toFixed(1)+'%';
+  mobileSpeedThumb.style.top=((1-ratio)*100).toFixed(1)+'%';
+  mobileSpeedTrack.setAttribute('aria-valuenow',moveSpeedMultiplier.toFixed(1));
 }
 function applyCameraTilt(){
   if(!model)return;
@@ -578,8 +585,33 @@ bindViewButton(speedDown,()=>adjustMoveSpeed(-0.5));
 bindViewButton(speedUp,()=>adjustMoveSpeed(0.5));
 bindViewButton(mobileTiltDown,()=>adjustCameraTilt(-5));
 bindViewButton(mobileTiltUp,()=>adjustCameraTilt(5));
-bindViewButton(mobileSpeedDown,()=>adjustMoveSpeed(-0.5));
-bindViewButton(mobileSpeedUp,()=>adjustMoveSpeed(0.5));
+
+let mobileSpeedPointerId=null;
+function setMobileSpeedFromPointer(clientY){
+  const rect=mobileSpeedTrack.getBoundingClientRect();
+  if(rect.height<=0)return;
+  const ratio=THREE.MathUtils.clamp(1-(clientY-rect.top)/rect.height,0,1);
+  moveSpeedMultiplier=Math.round((0.5+ratio*(4.0-0.5))*10)/10;
+  updateViewControlLabels();
+}
+mobileSpeedVolume.addEventListener('pointerdown',e=>{
+  e.preventDefault();e.stopPropagation();
+  mobileSpeedPointerId=e.pointerId;
+  mobileSpeedVolume.setPointerCapture(e.pointerId);
+  setMobileSpeedFromPointer(e.clientY);
+});
+mobileSpeedVolume.addEventListener('pointermove',e=>{
+  if(mobileSpeedPointerId!==e.pointerId)return;
+  e.preventDefault();e.stopPropagation();
+  setMobileSpeedFromPointer(e.clientY);
+});
+function endMobileSpeed(e){
+  if(mobileSpeedPointerId!==e.pointerId)return;
+  try{mobileSpeedVolume.releasePointerCapture(e.pointerId)}catch{}
+  mobileSpeedPointerId=null;
+}
+mobileSpeedVolume.addEventListener('pointerup',endMobileSpeed);
+mobileSpeedVolume.addEventListener('pointercancel',endMobileSpeed);
 updateViewControlLabels();
 
 const pointers=new Map();
